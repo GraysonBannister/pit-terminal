@@ -1,62 +1,66 @@
+import asyncio
 import logging
 
-from apscheduler.schedulers.asyncio import AsyncIOScheduler
-from apscheduler.triggers.interval import IntervalTrigger
-
 logger = logging.getLogger(__name__)
-scheduler = AsyncIOScheduler()
+
+_running = False
+_tasks = []
 
 
-async def _ingest_polymarket():
-    logger.info("Running Polymarket ingestion...")
-    try:
-        from ingestion.polymarket import ingest_polymarket
-        await ingest_polymarket()
-    except Exception as e:
-        logger.error(f"Polymarket ingestion failed: {e}")
+async def _loop_ingest_polymarket():
+    from ingestion.polymarket import ingest_polymarket
+    while _running:
+        try:
+            logger.info("Running Polymarket ingestion...")
+            await ingest_polymarket()
+            logger.info("Polymarket ingestion complete")
+        except Exception as e:
+            logger.error(f"Polymarket ingestion failed: {e}")
+        await asyncio.sleep(180)
 
 
-async def _ingest_news():
-    logger.info("Running news ingestion...")
-    try:
-        from ingestion.news import ingest_news
-        await ingest_news()
-    except Exception as e:
-        logger.error(f"News ingestion failed: {e}")
+async def _loop_ingest_news():
+    from ingestion.news import ingest_news
+    while _running:
+        try:
+            logger.info("Running news ingestion...")
+            await ingest_news()
+            logger.info("News ingestion complete")
+        except Exception as e:
+            logger.error(f"News ingestion failed: {e}")
+        await asyncio.sleep(600)
 
 
-async def _run_opportunity_engine():
-    logger.info("Running opportunity engine...")
-    try:
-        from ai.opportunity_engine import run_opportunity_engine
-        await run_opportunity_engine()
-    except Exception as e:
-        logger.error(f"Opportunity engine failed: {e}")
+async def _loop_opportunity_engine():
+    from ai.opportunity_engine import run_opportunity_engine
+    while _running:
+        try:
+            logger.info("Running opportunity engine...")
+            await run_opportunity_engine()
+            logger.info("Opportunity engine complete")
+        except Exception as e:
+            logger.error(f"Opportunity engine failed: {e}")
+        await asyncio.sleep(300)
 
 
 def start_scheduler():
-    scheduler.add_job(
-        _ingest_polymarket,
-        trigger=IntervalTrigger(minutes=3),
-        id="polymarket_ingest",
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _ingest_news,
-        trigger=IntervalTrigger(minutes=10),
-        id="news_ingest",
-        replace_existing=True,
-    )
-    scheduler.add_job(
-        _run_opportunity_engine,
-        trigger=IntervalTrigger(minutes=5),
-        id="opportunity_engine",
-        replace_existing=True,
-    )
-    scheduler.start()
+    global _running, _tasks
+    if _running:
+        return
+    _running = True
+    loop = asyncio.get_running_loop()
+    _tasks = [
+        loop.create_task(_loop_ingest_polymarket()),
+        loop.create_task(_loop_ingest_news()),
+        loop.create_task(_loop_opportunity_engine()),
+    ]
     logger.info("Scheduler started")
 
 
 def stop_scheduler():
-    scheduler.shutdown()
+    global _running, _tasks
+    _running = False
+    for t in _tasks:
+        t.cancel()
+    _tasks.clear()
     logger.info("Scheduler stopped")

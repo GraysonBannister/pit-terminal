@@ -1,6 +1,13 @@
 import os
 import logging
+import sys
 from contextlib import asynccontextmanager
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s: %(message)s",
+    stream=sys.stdout,
+)
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -27,6 +34,19 @@ async def lifespan(app: FastAPI):
         start_scheduler()
     except Exception as e:
         logger.error(f"Scheduler start failed: {e}")
+
+    # Run ingestion once at startup so data appears immediately
+    try:
+        from ingestion.polymarket import ingest_polymarket
+        from ingestion.news import ingest_news
+        from ai.opportunity_engine import run_opportunity_engine
+        logger.info("Running startup ingestion...")
+        await ingest_polymarket()
+        await ingest_news()
+        await run_opportunity_engine()
+        logger.info("Startup ingestion complete")
+    except Exception as e:
+        logger.error(f"Startup ingestion failed: {e}")
 
     yield
 
