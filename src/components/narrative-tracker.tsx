@@ -29,7 +29,7 @@ export function NarrativeTracker() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Activity className="h-4 w-4 text-indigo-400" />
-            <CardTitle className="text-sm font-semibold text-slate-100">
+            <CardTitle className="text-base font-bold text-slate-50">
               Narrative Shift Tracker
             </CardTitle>
           </div>
@@ -68,27 +68,27 @@ export function NarrativeTracker() {
                       <div className="flex items-center gap-2 mb-1">
                         <Badge
                           variant="outline"
-                          className={`text-[10px] uppercase ${getCategoryColor(nar.category)}`}
+                          className={`text-xs uppercase tracking-wide ${getCategoryColor(nar.category)}`}
                         >
                           {nar.category}
                         </Badge>
-                        <span className="flex items-center gap-1 text-[10px] text-slate-500">
-                          <Clock className="h-3 w-3" />
+                        <span className="flex items-center gap-1.5 text-sm text-slate-400">
+                          <Clock className="h-4 w-4" />
                           {new Date(nar.last_updated).toLocaleTimeString()}
                         </span>
                       </div>
-                      <p className="text-sm font-medium text-slate-200 truncate">
+                      <p className="text-base font-medium text-slate-100 truncate leading-snug">
                         {nar.topic}
                       </p>
                     </div>
-                    <div className="flex items-center gap-1 rounded-md bg-slate-950 px-2 py-1">
+                    <div className="flex items-center gap-1.5 rounded-md bg-slate-950 px-3 py-1.5">
                       {delta >= 0 ? (
-                        <TrendingUp className="h-3 w-3 text-emerald-400" />
+                        <TrendingUp className="h-4 w-4 text-emerald-400" />
                       ) : (
-                        <TrendingDown className="h-3 w-3 text-rose-400" />
+                        <TrendingDown className="h-4 w-4 text-rose-400" />
                       )}
                       <span
-                        className={`text-xs font-bold ${
+                        className={`text-sm font-bold ${
                           delta >= 0 ? "text-emerald-400" : "text-rose-400"
                         }`}
                       >
@@ -98,37 +98,37 @@ export function NarrativeTracker() {
                     </div>
                   </div>
 
-                  <div className="mt-3 grid grid-cols-3 gap-2">
-                    <div className="rounded bg-slate-950 px-2 py-1.5">
-                      <p className="text-[10px] text-slate-500">Velocity</p>
-                      <p className="text-xs font-semibold text-slate-200">
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div className="rounded-lg bg-slate-950 px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500 mb-1">Velocity</p>
+                      <p className="text-sm font-bold text-slate-200">
                         {(nar.velocity * 100).toFixed(0)}%
                       </p>
                     </div>
-                    <div className="rounded bg-slate-950 px-2 py-1.5">
-                      <p className="text-[10px] text-slate-500">Attention</p>
-                      <p className="text-xs font-semibold text-slate-200">
+                    <div className="rounded-lg bg-slate-950 px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500 mb-1">Attention</p>
+                      <p className="text-sm font-bold text-slate-200">
                         {nar.attention_spike.toFixed(1)}x
                       </p>
                     </div>
-                    <div className="rounded bg-slate-950 px-2 py-1.5">
-                      <p className="text-[10px] text-slate-500">Sources</p>
-                      <p className="text-xs font-semibold text-slate-200">
+                    <div className="rounded-lg bg-slate-950 px-3 py-2">
+                      <p className="text-xs font-medium text-slate-500 mb-1">Sources</p>
+                      <p className="text-sm font-bold text-slate-200">
                         {nar.sources}
                       </p>
                     </div>
                   </div>
 
-                  <div className="mt-2">
-                    <div className="h-1.5 w-full rounded-full bg-slate-800 overflow-hidden">
+                  <div className="mt-3">
+                    <div className="h-2 w-full rounded-full bg-slate-800 overflow-hidden">
                       <div
                         className="h-full rounded-full bg-indigo-500 transition-all"
                         style={{ width: `${nar.current_sentiment * 100}%` }}
                       />
                     </div>
-                    <div className="mt-1 flex justify-between text-[10px] text-slate-500">
-                      <span>Sentiment: {(nar.current_sentiment * 100).toFixed(0)}%</span>
-                      <span>from {(nar.previous_sentiment * 100).toFixed(0)}%</span>
+                    <div className="mt-2 flex justify-between text-sm text-slate-400">
+                      <span className="font-medium">Sentiment: <span className="text-slate-200">{(nar.current_sentiment * 100).toFixed(0)}%</span></span>
+                      <span className="font-medium">from <span className="text-slate-200">{(nar.previous_sentiment * 100).toFixed(0)}%</span></span>
                     </div>
                   </div>
                 </div>

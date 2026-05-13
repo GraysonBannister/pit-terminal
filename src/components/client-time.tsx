@@ -11,8 +11,8 @@ export function ClientTime({ iso }: { iso: string }) {
   }, []);
 
   if (!mounted) {
-    return <span className="text-[10px] text-slate-500">—</span>;
+    return <span className="text-sm font-medium text-slate-500">—</span>;
   }
 
-  return <span className="text-[10px] text-slate-500">{formatTimeAgo(iso)}</span>;
+  return <span className="text-sm font-medium text-slate-500">{formatTimeAgo(iso)}</span>;
 }

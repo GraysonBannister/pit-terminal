@@ -31,31 +31,31 @@ function OpportunityCard({ opp }: { opp: any }) {
             <div className="flex items-center gap-2 mb-1">
               <Badge
                 variant="outline"
-                className={`text-[10px] uppercase ${getCategoryColor(opp.category)}`}
+                className={`text-xs uppercase tracking-wide ${getCategoryColor(opp.category)}`}
               >
                 {opp.category}
               </Badge>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-sm text-slate-400">
                 {new Date(opp.created_at).toLocaleTimeString()}
               </span>
             </div>
             <Link
               href={`/market/${opp.market_id}`}
-              className="block text-sm font-semibold text-slate-200 hover:text-indigo-300 truncate"
+              className="block text-base font-semibold text-slate-100 hover:text-indigo-300 truncate leading-snug"
             >
               {opp.market_title}
             </Link>
-            <p className="mt-1 text-xs text-slate-400">{divergence}</p>
+            <p className="mt-2 text-sm text-slate-400">{divergence}</p>
           </div>
-          <div className="flex flex-col items-end gap-1">
-            <div className="flex items-center gap-1">
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-2">
               {opp.divergence_type === "undervalued" ? (
-                <ArrowUp className="h-4 w-4 text-emerald-400" />
+                <ArrowUp className="h-5 w-5 text-emerald-400" />
               ) : (
-                <ArrowDown className="h-4 w-4 text-rose-400" />
+                <ArrowDown className="h-5 w-5 text-rose-400" />
               )}
               <span
-                className={`text-sm font-bold ${
+                className={`text-base font-bold ${
                   opp.divergence_type === "undervalued"
                     ? "text-emerald-400"
                     : "text-rose-400"
@@ -64,9 +64,9 @@ function OpportunityCard({ opp }: { opp: any }) {
                 {opp.divergence_type === "undervalued" ? "Undervalued" : "Overvalued"}
               </span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[10px] text-slate-500">Confidence</span>
-              <span className="text-xs font-bold text-indigo-300">
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-slate-400">Confidence</span>
+              <span className="text-base font-bold text-indigo-300">
                 {opp.confidence_score.toFixed(0)}
               </span>
             </div>
@@ -77,17 +77,17 @@ function OpportunityCard({ opp }: { opp: any }) {
           <Progress value={opp.confidence_score} className="h-1.5 bg-slate-800" />
         </div>
 
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-4 flex flex-wrap gap-2">
           {(opp.signals || []).map((signal: any, i: number) => (
             <div
               key={i}
-              className="flex items-center gap-1.5 rounded-md border border-slate-800 bg-slate-950 px-2 py-1"
+              className="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5"
             >
-              <span className="text-slate-400">{signalIcons[signal.type] || <TrendingUp className="h-3 w-3" />}</span>
-              <span className="text-[10px] font-medium text-slate-300">
+              <span className="text-slate-400">{signalIcons[signal.type] || <TrendingUp className="h-4 w-4" />}</span>
+              <span className="text-sm font-medium text-slate-300">
                 {signal.label}
               </span>
-              <span className="text-[10px] text-slate-500">
+              <span className="text-sm font-semibold text-slate-500">
                 {(signal.strength * 100).toFixed(0)}%
               </span>
             </div>
@@ -120,7 +120,7 @@ export function OpportunityFeed() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Zap className="h-4 w-4 text-amber-400" />
-            <CardTitle className="text-sm font-semibold text-slate-100">
+            <CardTitle className="text-base font-bold text-slate-50">
               Live Opportunity Feed
             </CardTitle>
           </div>

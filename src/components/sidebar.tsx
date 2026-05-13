@@ -31,10 +31,10 @@ export function Sidebar() {
       <div className="flex h-16 items-center gap-3 border-b border-slate-800 px-6">
         <Shield className="h-6 w-6 text-indigo-400" />
         <div>
-          <h1 className="text-sm font-bold tracking-tight text-slate-100">
+          <h1 className="text-lg font-bold tracking-tight text-slate-50">
             PIT Terminal
           </h1>
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+          <p className="text-sm font-medium text-slate-400">
             Prediction Intelligence
           </p>
         </div>
@@ -48,13 +48,13 @@ export function Sidebar() {
               key={item.name}
               href={item.href}
               className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                "flex items-center gap-3 rounded-lg px-4 py-3 text-base font-medium transition-colors",
                 active
                   ? "bg-indigo-500/10 text-indigo-300"
-                  : "text-slate-400 hover:bg-slate-900 hover:text-slate-200"
+                  : "text-slate-300 hover:bg-slate-900 hover:text-slate-100"
               )}
             >
-              <item.icon className="h-4 w-4" />
+              <item.icon className="h-5 w-5" />
               {item.name}
             </Link>
           );
@@ -62,19 +62,19 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-slate-800 p-4">
-        <button className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-slate-400 transition-colors hover:bg-slate-900 hover:text-slate-200">
-          <Settings className="h-4 w-4" />
+        <button className="flex w-full items-center gap-3 rounded-lg px-4 py-3 text-base font-medium text-slate-300 transition-colors hover:bg-slate-900 hover:text-slate-100">
+          <Settings className="h-5 w-5" />
           Settings
         </button>
-        <div className="mt-4 rounded-md border border-slate-800 bg-slate-900/50 p-3">
-          <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">
+        <div className="mt-4 rounded-lg border border-slate-800 bg-slate-900/50 p-4">
+          <p className="text-sm font-semibold text-slate-400 mb-2">
             Terminal Status
           </p>
-          <div className="mt-2 flex items-center gap-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-xs text-slate-300">Live Monitoring</span>
+          <div className="flex items-center gap-2.5">
+            <span className="h-2.5 w-2.5 rounded-full bg-emerald-400 animate-pulse" />
+            <span className="text-base font-medium text-slate-200">Live Monitoring</span>
           </div>
-          <p className="mt-1 text-xs text-slate-500">
+          <p className="mt-2 text-sm text-slate-500">
             {markets.length} markets tracked
           </p>
         </div>

@@ -30,7 +30,7 @@ export function CrossMarketTable() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <GitCompare className="h-4 w-4 text-emerald-400" />
-            <CardTitle className="text-sm font-semibold text-slate-100">
+            <CardTitle className="text-base font-bold text-slate-50">
               Cross-Market Arbitrage
             </CardTitle>
           </div>
@@ -68,19 +68,19 @@ export function CrossMarketTable() {
             >
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
-                  <p className="text-sm font-medium text-slate-200">
+                  <p className="text-base font-semibold text-slate-100 leading-snug">
                     {comp.event_title}
                   </p>
                   {comp.arbitrage_hint && (
-                    <div className="mt-1 flex items-center gap-1.5 text-[10px] text-amber-400">
-                      <AlertTriangle className="h-3 w-3" />
+                    <div className="mt-2 flex items-center gap-2 text-sm text-amber-400">
+                      <AlertTriangle className="h-4 w-4" />
                       {comp.arbitrage_hint}
                     </div>
                   )}
                 </div>
                 <Badge
                   variant="outline"
-                  className={`text-[10px] ${
+                  className={`text-sm font-bold ${
                     comp.disagreement_score > 0.15
                       ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                       : "bg-slate-500/10 text-slate-400 border-slate-500/20"
@@ -97,11 +97,11 @@ export function CrossMarketTable() {
                     className="flex items-center gap-3 rounded-md bg-slate-950 px-3 py-2"
                   >
                     <span
-                      className="min-w-[160px] max-w-[200px] text-xs font-medium text-slate-300 truncate"
+                      className="min-w-[200px] max-w-[260px] text-sm font-medium text-slate-200 truncate"
                       title={(m as any).title || m.source}
                     >
                       {(m as any).title
-                        ? (m as any).title.replace(/^Will /, "").replace(/\?$/, "").slice(0, 32)
+                        ? (m as any).title.replace(/^Will /, "").replace(/\?$/, "").slice(0, 38)
                         : m.source}
                     </span>
                     <div className="flex-1">
@@ -118,15 +118,15 @@ export function CrossMarketTable() {
                             style={{ width: `${m.probability * 100}%` }}
                           />
                         </div>
-                        <span className="min-w-[40px] text-right text-xs font-bold text-slate-200">
+                        <span className="min-w-[50px] text-right text-sm font-bold text-slate-100">
                           {formatProbability(m.probability)}
                         </span>
                       </div>
                     </div>
-                    <span className="min-w-[60px] text-right text-[10px] text-slate-500">
+                    <span className="min-w-[70px] text-right text-sm font-medium text-slate-400">
                       {m.volume > 0 ? formatVolume(m.volume) : "—"}
                     </span>
-                    <span className="min-w-[50px] text-right">
+                    <span className="min-w-[60px] text-right">
                       <ClientTime iso={m.updated_at} />
                     </span>
                   </div>

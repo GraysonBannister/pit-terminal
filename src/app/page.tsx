@@ -7,9 +7,9 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-slate-100">Dashboard</h1>
-        <p className="text-sm text-slate-400">
-          Live probability intelligence feed and market monitoring.
+        <h1 className="text-2xl font-bold text-slate-50">Dashboard</h1>
+        <p className="text-base text-slate-400 mt-1">
+          Live probability intelligence feed and market monitoring
         </p>
       </div>
 

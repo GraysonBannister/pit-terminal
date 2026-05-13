@@ -30,7 +30,7 @@ export function MarketList() {
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <LineChart className="h-4 w-4 text-slate-400" />
-            <CardTitle className="text-sm font-semibold text-slate-100">
+            <CardTitle className="text-base font-bold text-slate-50">
               Active Markets
             </CardTitle>
           </div>
@@ -69,32 +69,32 @@ export function MarketList() {
                   <div className="flex items-center gap-2 mb-1">
                     <Badge
                       variant="outline"
-                      className={`text-[10px] uppercase ${getCategoryColor(market.category)}`}
+                      className={`text-xs uppercase tracking-wide ${getCategoryColor(market.category)}`}
                     >
                       {market.category}
                     </Badge>
-                    <span className="text-[10px] text-slate-500">
+                    <span className="text-sm text-slate-400">
                       {market.source}
                     </span>
                   </div>
-                  <p className="text-sm font-medium text-slate-200 truncate">
+                  <p className="text-base font-medium text-slate-100 truncate leading-snug">
                     {market.title}
                   </p>
                 </div>
-                <div className="flex flex-col items-end gap-1">
-                  <span className="text-sm font-bold text-slate-100">
+                <div className="flex flex-col items-end gap-1.5">
+                  <span className="text-lg font-bold text-slate-50">
                     {formatProbability(market.probability)}
                   </span>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1.5">
                     {market.recent_movement > 0 ? (
-                      <TrendingUp className="h-3 w-3 text-emerald-400" />
+                      <TrendingUp className="h-4 w-4 text-emerald-400" />
                     ) : market.recent_movement < 0 ? (
-                      <TrendingDown className="h-3 w-3 text-rose-400" />
+                      <TrendingDown className="h-4 w-4 text-rose-400" />
                     ) : (
-                      <Minus className="h-3 w-3 text-slate-500" />
+                      <Minus className="h-4 w-4 text-slate-500" />
                     )}
                     <span
-                      className={`text-[10px] font-medium ${
+                      className={`text-sm font-semibold ${
                         market.recent_movement > 0
                           ? "text-emerald-400"
                           : market.recent_movement < 0
@@ -108,12 +108,12 @@ export function MarketList() {
                   </div>
                 </div>
               </div>
-              <div className="mt-2 flex items-center gap-4 text-[10px] text-slate-500">
-                <span>Vol: {formatVolume(market.volume)}</span>
-                <span>Liq: {formatVolume(market.liquidity)}</span>
-                <span>Spread: {(market.spread * 100).toFixed(1)}%</span>
-                <span className="ml-auto">
-                  Resolves {market.resolution_date || "TBD"}
+              <div className="mt-3 flex items-center gap-6 text-sm text-slate-400">
+                <span className="font-medium">Vol: <span className="text-slate-300">{formatVolume(market.volume)}</span></span>
+                <span className="font-medium">Liq: <span className="text-slate-300">{formatVolume(market.liquidity)}</span></span>
+                <span className="font-medium">Spread: <span className="text-slate-300">{(market.spread * 100).toFixed(1)}%</span></span>
+                <span className="ml-auto font-medium">
+                  Resolves <span className="text-slate-300">{market.resolution_date || "TBD"}</span>
                 </span>
               </div>
             </Link>
