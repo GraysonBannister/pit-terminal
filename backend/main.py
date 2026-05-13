@@ -35,18 +35,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Scheduler start failed: {e}")
 
-    # Run ingestion once at startup so data appears immediately
+    # Run ingestion in background so it doesn't block startup health checks
+    async def _startup_ingestion():
+        try:
+            from ingestion.polymarket import ingest_polymarket
+            from ingestion.news import ingest_news
+            from ai.opportunity_engine import run_opportunity_engine
+            logger.info("Running startup ingestion...")
+            await ingest_polymarket()
+            await ingest_news()
+            await run_opportunity_engine()
+            logger.info("Startup ingestion complete")
+        except Exception as e:
+            logger.error(f"Startup ingestion failed: {e}")
+
     try:
-        from ingestion.polymarket import ingest_polymarket
-        from ingestion.news import ingest_news
-        from ai.opportunity_engine import run_opportunity_engine
-        logger.info("Running startup ingestion...")
-        await ingest_polymarket()
-        await ingest_news()
-        await run_opportunity_engine()
-        logger.info("Startup ingestion complete")
+        import asyncio
+        asyncio.create_task(_startup_ingestion())
     except Exception as e:
-        logger.error(f"Startup ingestion failed: {e}")
+        logger.error(f"Failed to start background ingestion: {e}")
 
     yield
 
