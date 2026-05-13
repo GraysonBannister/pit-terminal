@@ -29,6 +29,8 @@ SOURCE_CREDIBILITY = {
     "bbc": 0.85,
     "politico": 0.83,
     "axios": 0.84,
+    "reddit": 0.55,
+    "hackernews": 0.75,
 }
 
 KEYWORD_TAGS = {
@@ -61,7 +63,7 @@ def _hash_url(url: str) -> str:
 
 async def fetch_newsapi() -> list[dict]:
     if not NEWSAPI_KEY:
-        logger.warning("NEWSAPI_KEY not set, skipping NewsAPI ingestion")
+        logger.info("NEWSAPI_KEY not set, skipping NewsAPI")
         return []
 
     queries = [
@@ -94,14 +96,93 @@ async def fetch_newsapi() -> list[dict]:
     return articles
 
 
+async def fetch_reddit() -> list[dict]:
+    """Fetch hot posts from relevant subreddits — no API key needed."""
+    subreddits = [
+        ("politics", "politics"),
+        ("worldnews", "worldnews"),
+        ("Bitcoin", "crypto"),
+        ("ethereum", "crypto"),
+        ("artificial", "ai"),
+        ("technology", "tech"),
+        ("economy", "macro"),
+        ("wallstreetbets", "macro"),
+    ]
+
+    articles = []
+    async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": "PIT-Terminal/1.0"}) as client:
+        for subreddit, default_tag in subreddits:
+            try:
+                url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=15"
+                resp = await client.get(url)
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                for child in data.get("data", {}).get("children", []):
+                    post = child.get("data", {})
+                    title = post.get("title", "")
+                    permalink = post.get("permalink", "")
+                    if not title or not permalink:
+                        continue
+                    articles.append({
+                        "title": title,
+                        "url": f"https://reddit.com{permalink}",
+                        "description": post.get("selftext", "")[:300],
+                        "publishedAt": datetime.now(timezone.utc).isoformat(),
+                        "source": {"name": "Reddit"},
+                        "tags": _extract_tags(title),
+                    })
+            except Exception as e:
+                logger.warning(f"Reddit fetch failed for r/{subreddit}: {e}")
+
+    return articles
+
+
+async def fetch_hackernews() -> list[dict]:
+    """Fetch top stories from Hacker News — no API key needed."""
+    articles = []
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        try:
+            top_resp = await client.get("https://hacker-news.firebaseio.com/v0/topstories.json")
+            top_ids = top_resp.json()[:30]
+            for story_id in top_ids:
+                try:
+                    item_resp = await client.get(f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json")
+                    item = item_resp.json()
+                    if not item or item.get("type") != "story":
+                        continue
+                    title = item.get("title", "")
+                    url = item.get("url", f"https://news.ycombinator.com/item?id={story_id}")
+                    articles.append({
+                        "title": title,
+                        "url": url,
+                        "description": "",
+                        "publishedAt": datetime.now(timezone.utc).isoformat(),
+                        "source": {"name": "HackerNews"},
+                        "tags": _extract_tags(title),
+                    })
+                except Exception:
+                    continue
+        except Exception as e:
+            logger.warning(f"HackerNews fetch failed: {e}")
+
+    return articles
+
+
 async def ingest_news():
-    logger.info("Fetching news...")
-    articles = await fetch_newsapi()
-    logger.info(f"Fetched {len(articles)} articles")
+    logger.info("Fetching news from all sources...")
+
+    # Try all sources in parallel
+    newsapi_articles = await fetch_newsapi()
+    reddit_articles = await fetch_reddit()
+    hn_articles = await fetch_hackernews()
+
+    all_articles = newsapi_articles + reddit_articles + hn_articles
+    logger.info(f"Fetched {len(all_articles)} articles total")
 
     async with AsyncSessionLocal() as session:
         seen = set()
-        for art in articles:
+        for art in all_articles:
             url = art.get("url", "")
             if not url:
                 continue
@@ -123,6 +204,7 @@ async def ingest_news():
             description = art.get("description", "")
             published = art.get("publishedAt")
             content = art.get("content", "")
+            art_tags = art.get("tags", [])
 
             # Parse published date
             try:
@@ -130,7 +212,7 @@ async def ingest_news():
             except Exception:
                 pub_dt = datetime.now(timezone.utc)
 
-            tags = _extract_tags(headline + " " + description)
+            tags = art_tags if art_tags else _extract_tags(headline + " " + description)
             credibility = _get_credibility(source_name)
 
             news_item = NewsItem(

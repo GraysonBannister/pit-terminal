@@ -299,27 +299,56 @@ async def seed_data():
 @router.get("/cross-market")
 async def list_cross_market(db: AsyncSession = Depends(get_db)):
     try:
-        result = await db.execute(select(Market).order_by(desc(Market.volume)).limit(50))
+        result = await db.execute(select(Market).order_by(desc(Market.volume)).limit(100))
         markets = result.scalars().all()
 
-        # Group markets by category for synthetic cross-market comparisons
-        from collections import defaultdict
-        by_category = defaultdict(list)
-        for m in markets:
-            by_category[m.category].append(m)
+        # Find related markets by keyword overlap in titles
+        def _keywords(title: str) -> set[str]:
+            words = title.lower().replace("?", "").replace(".", "").split()
+            # Filter out common stop words
+            stops = {"will", "the", "a", "an", "in", "on", "at", "by", "to", "of", "for", "be", "is", "are", "before", "end", "year", "2024", "2025", "2026", "2027", "2028"}
+            return {w for w in words if len(w) > 2 and w not in stops}
+
+        def _relatedness(m1: Market, m2: Market) -> float:
+            k1 = _keywords(m1.title)
+            k2 = _keywords(m2.title)
+            if not k1 or not k2:
+                return 0.0
+            intersection = k1 & k2
+            union = k1 | k2
+            return len(intersection) / len(union) if union else 0.0
+
+        # Build clusters of related markets
+        clusters = []
+        used = set()
+        for i, m1 in enumerate(markets):
+            if m1.id in used:
+                continue
+            cluster = [m1]
+            used.add(m1.id)
+            for m2 in markets[i + 1:]:
+                if m2.id in used:
+                    continue
+                if _relatedness(m1, m2) >= 0.3:  # At least 30% keyword overlap
+                    cluster.append(m2)
+                    used.add(m2.id)
+            if len(cluster) >= 2:
+                clusters.append(cluster)
 
         comparisons = []
-        for cat, cat_markets in by_category.items():
-            if len(cat_markets) < 2:
-                continue
-            # Pick top 2-3 markets in category
-            selected = cat_markets[:3]
-            max_prob = max(m.probability for m in selected)
-            min_prob = min(m.probability for m in selected)
+        for cluster in clusters[:10]:
+            max_prob = max(m.probability for m in cluster)
+            min_prob = min(m.probability for m in cluster)
             disagreement = abs(max_prob - min_prob)
 
+            # Generate event title from common keywords
+            common = _keywords(cluster[0].title)
+            for m in cluster[1:]:
+                common &= _keywords(m.title)
+            event_title = " ".join(sorted(common)).title() if common else cluster[0].title[:60]
+
             comparisons.append({
-                "event_title": f"{cat.title()} markets",
+                "event_title": event_title,
                 "markets": [
                     {
                         "source": m.source,
@@ -327,24 +356,34 @@ async def list_cross_market(db: AsyncSession = Depends(get_db)):
                         "volume": m.volume,
                         "updated_at": m.updated_at.isoformat() if m.updated_at else datetime.now(timezone.utc).isoformat(),
                     }
-                    for m in selected
+                    for m in sorted(cluster, key=lambda x: x.volume, reverse=True)[:4]
                 ],
                 "disagreement_score": round(disagreement, 3),
-                "arbitrage_hint": f"{len(selected)} active markets in {cat}" if disagreement > 0.1 else None,
+                "arbitrage_hint": f"Related markets diverge by {(disagreement * 100):.0f}pts" if disagreement > 0.05 else None,
             })
 
-        # Also add a hardcoded-style comparison for popular events if we have the data
-        trump_markets = [m for m in markets if "trump" in m.title.lower()]
-        if len(trump_markets) >= 1:
-            comparisons.insert(0, {
-                "event_title": "Trump-related prediction markets",
-                "markets": [
-                    {"source": m.source, "probability": m.probability, "volume": m.volume, "updated_at": m.updated_at.isoformat() if m.updated_at else datetime.now(timezone.utc).isoformat()}
-                    for m in trump_markets[:3]
-                ],
-                "disagreement_score": round(abs(max(m.probability for m in trump_markets) - min(m.probability for m in trump_markets)), 3) if len(trump_markets) > 1 else 0.05,
-                "arbitrage_hint": "Multiple Trump events tracked" if len(trump_markets) > 1 else None,
-            })
+        # Fallback: category-based groupings if no keyword clusters found
+        if not comparisons:
+            from collections import defaultdict
+            by_category = defaultdict(list)
+            for m in markets:
+                by_category[m.category].append(m)
+            for cat, cat_markets in by_category.items():
+                if len(cat_markets) < 2:
+                    continue
+                selected = cat_markets[:3]
+                max_prob = max(m.probability for m in selected)
+                min_prob = min(m.probability for m in selected)
+                disagreement = abs(max_prob - min_prob)
+                comparisons.append({
+                    "event_title": f"{cat.title()} markets",
+                    "markets": [
+                        {"source": m.source, "probability": m.probability, "volume": m.volume, "updated_at": m.updated_at.isoformat() if m.updated_at else datetime.now(timezone.utc).isoformat()}
+                        for m in selected
+                    ],
+                    "disagreement_score": round(disagreement, 3),
+                    "arbitrage_hint": f"{len(selected)} markets in {cat}" if disagreement > 0.05 else None,
+                })
 
         return comparisons
     except Exception:

@@ -6,7 +6,7 @@ from sqlalchemy import select, desc, func
 from sqlalchemy.dialects.postgresql import insert
 
 from database import AsyncSessionLocal
-from models import Market, NewsItem, Opportunity, PricePoint, NarrativeShift
+from models import Market, NewsItem, Opportunity, NarrativeShift
 from ai.summarizer import generate_market_summary
 from ai.sentiment import analyze_sentiment
 
@@ -27,12 +27,11 @@ MAX_OPPORTUNITIES = 20
 
 
 def _normalize_liquidity(liquidity: float) -> float:
-    # Low liquidity = higher weakness score
     return max(0.0, min(1.0, 1.0 - (liquidity / 500_000)))
 
 
 def _normalize_spread(spread: float) -> float:
-    return max(0.0, min(1.0, spread * 50))  # 2% spread = max score
+    return max(0.0, min(1.0, spread * 50))
 
 
 def _calculate_news_signal(news_items: list[NewsItem]) -> float:
@@ -45,18 +44,14 @@ def _calculate_news_signal(news_items: list[NewsItem]) -> float:
         if published.tzinfo is None:
             published = published.replace(tzinfo=timezone.utc)
         age_hours = (now - published).total_seconds() / 3600
-        recency_weight = max(0.1, 1.0 - (age_hours / 48))  # Decay over 48h
+        recency_weight = max(0.1, 1.0 - (age_hours / 48))
         total += item.credibility * recency_weight
     return max(0.0, min(1.0, total / len(news_items)))
 
 
 def _adjusted_probability(market_prob: float, sentiment: dict) -> float:
-    """Crude heuristic: shift probability based on sentiment direction."""
     confidence = sentiment.get("confidence", 0.5)
     uncertainty = sentiment.get("uncertainty", 0.5)
-    
-    # If high confidence and low uncertainty, market may be more certain than implied
-    # This is intentionally simple for MVP
     sentiment_factor = (confidence - uncertainty) * 0.15
     adjusted = market_prob + sentiment_factor
     return max(0.02, min(0.98, adjusted))
@@ -80,7 +75,7 @@ def _build_signals(
     recent_news: list[NewsItem],
 ) -> list[dict]:
     signals = []
-    
+
     if divergence_score > 0.3:
         signals.append({
             "type": "sentiment",
@@ -88,7 +83,7 @@ def _build_signals(
             "description": "News sentiment direction differs from market pricing",
             "strength": min(1.0, divergence_score),
         })
-    
+
     if narrative_velocity > 0.5:
         signals.append({
             "type": "narrative",
@@ -96,7 +91,7 @@ def _build_signals(
             "description": "Narrative shifting faster than baseline",
             "strength": narrative_velocity,
         })
-    
+
     if liquidity_weakness > 0.5:
         signals.append({
             "type": "liquidity",
@@ -104,7 +99,7 @@ def _build_signals(
             "description": "Low liquidity may suppress price discovery",
             "strength": liquidity_weakness,
         })
-    
+
     if spread_score > 0.3:
         signals.append({
             "type": "cross_market",
@@ -112,7 +107,7 @@ def _build_signals(
             "description": "Bid-ask spread indicates poor price discovery",
             "strength": spread_score,
         })
-    
+
     # Add top news signal
     top_news = [n for n in recent_news if n.credibility > 0.8][:1]
     if top_news:
@@ -123,13 +118,13 @@ def _build_signals(
             "strength": top_news[0].credibility,
             "source": top_news[0].source,
         })
-    
+
     return signals
 
 
 async def run_opportunity_engine():
     logger.info("Running opportunity engine...")
-    
+
     async with AsyncSessionLocal() as session:
         # Fetch active markets with volume > 0
         result = await session.execute(
@@ -139,24 +134,26 @@ async def run_opportunity_engine():
             .limit(50)
         )
         markets = result.scalars().all()
-        
+
+        # Fetch recent news (last 48h) — but don't require it
+        cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
+        news_result = await session.execute(
+            select(NewsItem)
+            .where(NewsItem.published_at >= cutoff)
+            .order_by(desc(NewsItem.published_at))
+            .limit(100)
+        )
+        all_news = news_result.scalars().all()
+
         opportunities_created = 0
-        
+
         for market in markets:
-            # Fetch related news (last 48h) — filter by tag overlap in Python for DB compatibility
-            cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
-            news_result = await session.execute(
-                select(NewsItem)
-                .where(NewsItem.published_at >= cutoff)
-                .order_by(desc(NewsItem.published_at))
-                .limit(100)
-            )
             market_tags = set(market.tags or [])
-            all_news = news_result.scalars().all()
             news_items = [
                 n for n in all_news
                 if market_tags.intersection(set(n.tags or []))
             ][:10]
+
             # Fallback: match by category keywords in headline
             if not news_items:
                 category_keywords = {
@@ -171,39 +168,46 @@ async def run_opportunity_engine():
                     n for n in all_news
                     if any(kw in (n.headline or "").lower() for kw in keywords)
                 ][:10]
-            
-            if not news_items:
-                continue
-            
-            # Run AI analysis
+
+            # Run AI analysis if OpenAI key is available, else use heuristics
             news_dicts = [
                 {"headline": n.headline, "source": n.source, "summary": n.summary}
                 for n in news_items
             ]
-            
-            sentiment = await analyze_sentiment(news_dicts)
-            summary = await generate_market_summary(
-                market_title=market.title,
-                recent_news=news_dicts,
-                current_probability=market.probability,
-                recent_movement=market.recent_movement,
-            )
-            
+
+            if news_dicts:
+                sentiment = await analyze_sentiment(news_dicts)
+                summary = await generate_market_summary(
+                    market_title=market.title,
+                    recent_news=news_dicts,
+                    current_probability=market.probability,
+                    recent_movement=market.recent_movement,
+                )
+            else:
+                # Heuristic sentiment when no news available
+                sentiment = {
+                    "confidence": 0.5,
+                    "uncertainty": 0.5,
+                    "polarization": 0.5,
+                    "narrative_velocity": 0.5,
+                }
+                summary = None
+
             # Update market with AI outputs
             market.ai_summary = summary or market.ai_summary
             market.sentiment = sentiment
-            
+
             # Calculate scores
             adjusted_prob = _adjusted_probability(market.probability, sentiment)
             divergence = abs(adjusted_prob - market.probability)
-            divergence_score = min(1.0, divergence * 3)  # Scale up
-            
+            divergence_score = min(1.0, divergence * 3)
+
             narrative_velocity = sentiment.get("narrative_velocity", 0.5)
             liquidity_weakness = _normalize_liquidity(market.liquidity)
             spread_score = _normalize_spread(market.spread)
             news_signal = _calculate_news_signal(news_items)
             movement_score = min(1.0, abs(market.recent_movement) * 5)
-            
+
             # Weighted confidence score (0-100)
             confidence = (
                 divergence_score * WEIGHTS["divergence"] +
@@ -213,21 +217,35 @@ async def run_opportunity_engine():
                 movement_score * WEIGHTS["recent_movement"] +
                 news_signal * WEIGHTS["news_signal"]
             ) * 100
-            
+
+            # BOOST: if no news but market has interesting characteristics, still create opportunity
+            if not news_items and confidence < MIN_CONFIDENCE_THRESHOLD:
+                # Pure market-data-driven scoring
+                pure_score = (
+                    (liquidity_weakness * 0.3) +
+                    (spread_score * 0.3) +
+                    (movement_score * 0.25) +
+                    (min(1.0, market.volume / 5_000_000) * 0.15)
+                ) * 100
+                if pure_score >= MIN_CONFIDENCE_THRESHOLD:
+                    confidence = pure_score
+                    divergence_score = 0.2
+                    narrative_velocity = 0.3
+
             if confidence < MIN_CONFIDENCE_THRESHOLD:
                 continue
-            
+
             div_type = _divergence_type(market.probability, adjusted_prob)
             signals = _build_signals(
                 divergence_score, narrative_velocity,
                 liquidity_weakness, spread_score, news_signal, news_items,
             )
-            
+
             # Build AI estimated range
             uncertainty = sentiment.get("uncertainty", 0.3)
             low = max(0.02, adjusted_prob - uncertainty * 0.3)
             high = min(0.98, adjusted_prob + uncertainty * 0.3)
-            
+
             opp_id = f"opp-{market.id}"
             stmt = insert(Opportunity).values(
                 id=opp_id,
@@ -256,7 +274,7 @@ async def run_opportunity_engine():
             )
             await session.execute(stmt)
             opportunities_created += 1
-            
+
             # Update narrative shift record
             nar_id = f"nar-{market.id}"
             prev_sent = market.sentiment.get("current_sentiment", 0.5) if market.sentiment else 0.5
@@ -284,7 +302,7 @@ async def run_opportunity_engine():
                 },
             )
             await session.execute(nar_stmt)
-        
+
         await session.commit()
-    
+
     logger.info(f"Opportunity engine complete. Created/updated {opportunities_created} opportunities.")
