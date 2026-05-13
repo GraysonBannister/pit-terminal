@@ -98,10 +98,10 @@ export function CrossMarketTable() {
                   >
                     <span
                       className="min-w-[200px] max-w-[260px] text-sm font-medium text-slate-200 truncate"
-                      title={(m as any).title || m.source}
+                      title={m.title || m.source}
                     >
-                      {(m as any).title
-                        ? (m as any).title.replace(/^Will /, "").replace(/\?$/, "").slice(0, 38)
+                      {m.title
+                        ? m.title.replace(/^Will /, "").replace(/\?$/, "").slice(0, 38)
                         : m.source}
                     </span>
                     <div className="flex-1">

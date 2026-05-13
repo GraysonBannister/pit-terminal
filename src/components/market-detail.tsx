@@ -27,24 +27,10 @@ export function MarketDetail({ id }: { id: string | undefined }) {
   const { market, loading } = useMarket(id);
   const { news: allNews } = useNews();
 
-  if (loading) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <p className="text-slate-500">Loading market data...</p>
-      </div>
-    );
-  }
-
-  if (!market) {
-    return (
-      <div className="flex h-96 items-center justify-center">
-        <p className="text-rose-400">Market not found</p>
-      </div>
-    );
-  }
-
   // Filter news by matching tags, fallback to category-based or recent news
+  // Must be before early returns to follow React Hooks rules
   const relatedNews = React.useMemo(() => {
+    if (!market) return [];
     const marketTags = market.tags || [];
     const marketCategory = market.category || "";
     
@@ -64,7 +50,23 @@ export function MarketDetail({ id }: { id: string | undefined }) {
     return allNews
       .filter((n) => n.credibility >= 0.7)
       .slice(0, 5);
-  }, [allNews, market.tags, market.category]);
+  }, [allNews, market]);
+
+  if (loading) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <p className="text-slate-500">Loading market data...</p>
+      </div>
+    );
+  }
+
+  if (!market) {
+    return (
+      <div className="flex h-96 items-center justify-center">
+        <p className="text-rose-400">Market not found</p>
+      </div>
+    );
+  }
 
   const sentiment = market.sentiment || {
     confidence: 0.5,

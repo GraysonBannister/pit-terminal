@@ -3,6 +3,7 @@
 import { useOpportunities } from "@/hooks/use-opportunities";
 import { formatProbability } from "@/lib/data";
 import { getCategoryColor } from "@/lib/data";
+import type { ApiOpportunity } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -18,7 +19,7 @@ const signalIcons: Record<string, React.ReactNode> = {
   narrative: <MessageSquare className="h-3 w-3" />,
 };
 
-function OpportunityCard({ opp }: { opp: any }) {
+function OpportunityCard({ opp }: { opp: ApiOpportunity }) {
   const low = opp.ai_estimated_low;
   const high = opp.ai_estimated_high;
   const divergence = `Market ${formatProbability(opp.market_probability)} vs AI ${formatProbability(low)}–${formatProbability(high)}`;
@@ -78,7 +79,7 @@ function OpportunityCard({ opp }: { opp: any }) {
         </div>
 
         <div className="mt-4 flex flex-wrap gap-2">
-          {(opp.signals || []).map((signal: any, i: number) => (
+          {(opp.signals || []).map((signal: { type: string; label: string; strength: number }, i: number) => (
             <div
               key={i}
               className="flex items-center gap-2 rounded-md border border-slate-700 bg-slate-950 px-3 py-1.5"
