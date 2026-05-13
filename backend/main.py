@@ -2,8 +2,9 @@ import os
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from database import engine, Base
 from api.markets import router as markets_router
@@ -15,22 +16,20 @@ logger = logging.getLogger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
     try:
         async with engine.begin() as conn:
             await conn.run_sync(Base.metadata.create_all)
         logger.info("Database tables created/verified")
     except Exception as e:
         logger.error(f"Database init failed (app will still start): {e}")
-    
+
     try:
         start_scheduler()
     except Exception as e:
         logger.error(f"Scheduler start failed: {e}")
-    
+
     yield
-    
-    # Shutdown
+
     try:
         stop_scheduler()
     except Exception:
@@ -48,25 +47,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
-# CORS — allow local dev AND production Netlify
-origins = [
-    "http://localhost:3000",
-    "http://localhost:3001",
-    "https://pit-terminal.netlify.app",
-    "https://*.netlify.app",
-]
-
-# Also allow any origin in production if env var is set
-if os.getenv("ALLOW_ALL_ORIGINS"):
-    origins = ["*"]
-
+# CORS — allow everything. The frontend handles auth/fallbacks.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Global exception handler — ensures CORS headers on errors too
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled error: {exc}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "ok": False},
+    )
+
 
 app.include_router(markets_router, prefix="/api")
 app.include_router(ws_router, prefix="/ws")

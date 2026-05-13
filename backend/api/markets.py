@@ -30,40 +30,47 @@ async def list_markets(
     limit: int = 50,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Market).order_by(desc(Market.volume))
-    if category:
-        query = query.where(Market.category == category)
-    result = await db.execute(query.limit(limit))
-    markets = result.scalars().all()
-    return [_serialize(m) for m in markets]
+    try:
+        query = select(Market).order_by(desc(Market.volume))
+        if category:
+            query = query.where(Market.category == category)
+        result = await db.execute(query.limit(limit))
+        markets = result.scalars().all()
+        return [_serialize(m) for m in markets]
+    except Exception:
+        return []
 
 
 @router.get("/markets/{market_id}")
 async def get_market(market_id: str, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(select(Market).where(Market.id == market_id))
-    market = result.scalar_one_or_none()
-    if not market:
-        raise HTTPException(status_code=404, detail="Market not found")
+    try:
+        result = await db.execute(select(Market).where(Market.id == market_id))
+        market = result.scalar_one_or_none()
+        if not market:
+            raise HTTPException(status_code=404, detail="Market not found")
 
-    # Fetch recent price history
-    price_result = await db.execute(
-        select(PricePoint)
-        .where(PricePoint.market_id == market_id)
-        .order_by(desc(PricePoint.timestamp))
-        .limit(100)
-    )
-    prices = price_result.scalars().all()
+        price_result = await db.execute(
+            select(PricePoint)
+            .where(PricePoint.market_id == market_id)
+            .order_by(desc(PricePoint.timestamp))
+            .limit(100)
+        )
+        prices = price_result.scalars().all()
 
-    data = _serialize(market)
-    data["price_history"] = [
-        {
-            "timestamp": p.timestamp.isoformat(),
-            "probability": p.probability,
-            "volume": p.volume,
-        }
-        for p in reversed(prices)
-    ]
-    return data
+        data = _serialize(market)
+        data["price_history"] = [
+            {
+                "timestamp": p.timestamp.isoformat(),
+                "probability": p.probability,
+                "volume": p.volume,
+            }
+            for p in reversed(prices)
+        ]
+        return data
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(status_code=503, detail="Database unavailable")
 
 
 @router.get("/opportunities")
@@ -73,14 +80,17 @@ async def list_opportunities(
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(Opportunity).order_by(desc(Opportunity.confidence_score))
-    if category:
-        query = query.where(Opportunity.category == category)
-    if min_confidence > 0:
-        query = query.where(Opportunity.confidence_score >= min_confidence)
-    result = await db.execute(query.limit(limit))
-    ops = result.scalars().all()
-    return [_serialize(o) for o in ops]
+    try:
+        query = select(Opportunity).order_by(desc(Opportunity.confidence_score))
+        if category:
+            query = query.where(Opportunity.category == category)
+        if min_confidence > 0:
+            query = query.where(Opportunity.confidence_score >= min_confidence)
+        result = await db.execute(query.limit(limit))
+        ops = result.scalars().all()
+        return [_serialize(o) for o in ops]
+    except Exception:
+        return []
 
 
 @router.get("/narratives")
@@ -89,12 +99,15 @@ async def list_narratives(
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(NarrativeShift).order_by(desc(NarrativeShift.velocity))
-    if category:
-        query = query.where(NarrativeShift.category == category)
-    result = await db.execute(query.limit(limit))
-    nar = result.scalars().all()
-    return [_serialize(n) for n in nar]
+    try:
+        query = select(NarrativeShift).order_by(desc(NarrativeShift.velocity))
+        if category:
+            query = query.where(NarrativeShift.category == category)
+        result = await db.execute(query.limit(limit))
+        nar = result.scalars().all()
+        return [_serialize(n) for n in nar]
+    except Exception:
+        return []
 
 
 @router.get("/news")
@@ -103,9 +116,12 @@ async def list_news(
     limit: int = 20,
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(NewsItem).order_by(desc(NewsItem.published_at))
-    result = await db.execute(query.limit(limit * 2))
-    items = result.scalars().all()
-    if tag:
-        items = [i for i in items if tag in (i.tags or [])]
-    return [_serialize(i) for i in items[:limit]]
+    try:
+        query = select(NewsItem).order_by(desc(NewsItem.published_at))
+        result = await db.execute(query.limit(limit * 2))
+        items = result.scalars().all()
+        if tag:
+            items = [i for i in items if tag in (i.tags or [])]
+        return [_serialize(i) for i in items[:limit]]
+    except Exception:
+        return []
