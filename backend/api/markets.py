@@ -180,15 +180,26 @@ async def clear_seed_data():
 @router.get("/cross-market")
 async def list_cross_market(db: AsyncSession = Depends(get_db)):
     try:
-        result = await db.execute(select(Market).order_by(desc(Market.volume)).limit(100))
+        # Only consider markets with meaningful probability and volume
+        result = await db.execute(
+            select(Market)
+            .where(Market.volume > 500_000)
+            .where(Market.probability >= 0.03)
+            .where(Market.probability <= 0.97)
+            .order_by(desc(Market.volume))
+            .limit(100)
+        )
         markets = result.scalars().all()
 
-        # Find related markets by keyword overlap in titles
+        STOPS = {
+            "will", "the", "a", "an", "in", "on", "at", "by", "to", "of", "for",
+            "be", "is", "are", "was", "were", "before", "end", "year", "win", "wins",
+            "2024", "2025", "2026", "2027", "2028", "cup", "world", "the",
+        }
+
         def _keywords(title: str) -> set[str]:
-            words = title.lower().replace("?", "").replace(".", "").split()
-            # Filter out common stop words
-            stops = {"will", "the", "a", "an", "in", "on", "at", "by", "to", "of", "for", "be", "is", "are", "before", "end", "year", "2024", "2025", "2026", "2027", "2028"}
-            return {w for w in words if len(w) > 2 and w not in stops}
+            words = title.lower().replace("?", "").replace(".", "").replace("'", "").split()
+            return {w for w in words if len(w) > 3 and w not in STOPS}
 
         def _relatedness(m1: Market, m2: Market) -> float:
             k1 = _keywords(m1.title)
@@ -198,6 +209,20 @@ async def list_cross_market(db: AsyncSession = Depends(get_db)):
             intersection = k1 & k2
             union = k1 | k2
             return len(intersection) / len(union) if union else 0.0
+
+        def _event_title(cluster: list) -> str:
+            """Build a readable event title from the cluster."""
+            # Use the most common meaningful words across titles
+            common = _keywords(cluster[0].title)
+            for m in cluster[1:]:
+                common &= _keywords(m.title)
+            if common:
+                # Prefer longer words for readability
+                words = sorted(common, key=len, reverse=True)[:4]
+                return " ".join(sorted(words)).title()
+            # Fallback: use the highest-volume market's title, truncated
+            best = max(cluster, key=lambda m: m.volume)
+            return best.title[:70].rstrip("?").strip()
 
         # Build clusters of related markets
         clusters = []
@@ -210,64 +235,43 @@ async def list_cross_market(db: AsyncSession = Depends(get_db)):
             for m2 in markets[i + 1:]:
                 if m2.id in used:
                     continue
-                if _relatedness(m1, m2) >= 0.3:  # At least 30% keyword overlap
+                # Same category AND keyword overlap
+                if m1.category == m2.category and _relatedness(m1, m2) >= 0.25:
                     cluster.append(m2)
                     used.add(m2.id)
             if len(cluster) >= 2:
                 clusters.append(cluster)
 
+        # Sort clusters by total volume descending
+        clusters.sort(key=lambda c: sum(m.volume for m in c), reverse=True)
+
         comparisons = []
         for cluster in clusters[:10]:
-            max_prob = max(m.probability for m in cluster)
-            min_prob = min(m.probability for m in cluster)
-            disagreement = abs(max_prob - min_prob)
-
-            # Generate event title from common keywords
-            common = _keywords(cluster[0].title)
-            for m in cluster[1:]:
-                common &= _keywords(m.title)
-            event_title = " ".join(sorted(common)).title() if common else cluster[0].title[:60]
+            top_markets = sorted(cluster, key=lambda m: m.volume, reverse=True)[:4]
+            probs = [m.probability for m in top_markets]
+            max_prob = max(probs)
+            min_prob = min(probs)
+            disagreement = round(max_prob - min_prob, 3)
 
             comparisons.append({
-                "event_title": event_title,
+                "event_title": _event_title(cluster),
                 "markets": [
                     {
                         "source": m.source,
                         "probability": m.probability,
                         "volume": m.volume,
+                        "title": m.title,
                         "updated_at": m.updated_at.isoformat() if m.updated_at else datetime.now(timezone.utc).isoformat(),
                     }
-                    for m in sorted(cluster, key=lambda x: x.volume, reverse=True)[:4]
+                    for m in top_markets
                 ],
-                "disagreement_score": round(disagreement, 3),
-                "arbitrage_hint": f"Related markets diverge by {(disagreement * 100):.0f}pts" if disagreement > 0.05 else None,
+                "disagreement_score": disagreement,
+                "arbitrage_hint": f"Markets diverge by {(disagreement * 100):.0f}pts" if disagreement > 0.05 else None,
             })
 
-        # Fallback: category-based groupings if no keyword clusters found
-        if not comparisons:
-            from collections import defaultdict
-            by_category = defaultdict(list)
-            for m in markets:
-                by_category[m.category].append(m)
-            for cat, cat_markets in by_category.items():
-                if len(cat_markets) < 2:
-                    continue
-                selected = cat_markets[:3]
-                max_prob = max(m.probability for m in selected)
-                min_prob = min(m.probability for m in selected)
-                disagreement = abs(max_prob - min_prob)
-                comparisons.append({
-                    "event_title": f"{cat.title()} markets",
-                    "markets": [
-                        {"source": m.source, "probability": m.probability, "volume": m.volume, "updated_at": m.updated_at.isoformat() if m.updated_at else datetime.now(timezone.utc).isoformat()}
-                        for m in selected
-                    ],
-                    "disagreement_score": round(disagreement, 3),
-                    "arbitrage_hint": f"{len(selected)} markets in {cat}" if disagreement > 0.05 else None,
-                })
-
         return comparisons
-    except Exception:
+    except Exception as e:
+        logger.error(f"cross-market error: {e}")
         return []
 
 

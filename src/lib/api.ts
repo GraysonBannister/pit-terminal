@@ -107,6 +107,7 @@ export interface ApiCrossMarket {
     probability: number;
     volume: number;
     updated_at: string;
+    title?: string;
   }[];
   disagreement_score: number;
   arbitrage_hint: string | null;

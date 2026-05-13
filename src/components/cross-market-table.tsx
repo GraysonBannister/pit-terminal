@@ -94,8 +94,13 @@ export function CrossMarketTable() {
                     key={j}
                     className="flex items-center gap-3 rounded-md bg-slate-950 px-3 py-2"
                   >
-                    <span className="min-w-[100px] text-xs font-medium text-slate-300">
-                      {m.source}
+                    <span
+                      className="min-w-[160px] max-w-[200px] text-xs font-medium text-slate-300 truncate"
+                      title={(m as any).title || m.source}
+                    >
+                      {(m as any).title
+                        ? (m as any).title.replace(/^Will /, "").replace(/\?$/, "").slice(0, 32)
+                        : m.source}
                     </span>
                     <div className="flex-1">
                       <div className="flex items-center gap-2">

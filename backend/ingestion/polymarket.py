@@ -14,23 +14,40 @@ logger = logging.getLogger(__name__)
 
 GAMMA_API = "https://gamma-api.polymarket.com"
 
-CATEGORY_MAP = {
-    "politics": ["politics", "us politics", "elections", "world politics", "government", "trump", "biden", "presidential", "democratic", "republican", "nomination", "senate", "congress", "house", "vote", "pm", "minister"],
-    "macro": ["economics", "finance", "markets", "fed", "recession", "inflation", "rates", "gdp", "unemployment", "cpi", "ppi"],
-    "tech": ["technology", "ai", "artificial intelligence", "openai", "apple", "google", "microsoft", "gpt", "llm", "model"],
-    "crypto": ["crypto", "bitcoin", "ethereum", "btc", "eth", "cryptocurrency", "blockchain", "etf", "solana"],
-    "sports": ["sports", "world cup", "olympics", "nba", "nfl", "mlb", "soccer", "football", "basketball"],
-}
+# Order matters: more specific categories first to avoid mis-classification
+CATEGORY_MAP = [
+    ("sports",   ["world cup", "fifa", "nba", "nfl", "mlb", "nhl", "olympics", "soccer",
+                  "football", "basketball", "hockey", "tennis", "golf", "ufc", "boxing",
+                  "championship", "stanley cup", "super bowl", "world series", "wimbledon",
+                  "premier league", "champions league", "euros", "copa america",
+                  "pistons", "spurs", "knicks", "lakers", "celtics", "warriors",
+                  "avalanche", "panthers", "oilers", "maple leafs"]),
+    ("crypto",   ["crypto", "bitcoin", "ethereum", "btc", "eth", "cryptocurrency",
+                  "blockchain", "solana", "defi", "nft", "altcoin", "binance", "coinbase"]),
+    ("macro",    ["fed", "federal reserve", "recession", "inflation", "rate cut",
+                  "interest rate", "gdp", "unemployment", "cpi", "ppi", "tariff",
+                  "trade war", "treasury", "bond", "yield curve", "debt ceiling"]),
+    ("tech",     ["artificial intelligence", "openai", "gpt", "llm", "model release",
+                  "apple", "google", "microsoft", "meta ", "amazon", "nvidia",
+                  "ipo", "acquisition", "merger", "tech company"]),
+    ("politics", ["election", "president", "presidential", "democratic", "republican",
+                  "nomination", "senate", "congress", "house", "vote", "ballot",
+                  "prime minister", "chancellor", "parliament", "referendum",
+                  "trump", "biden", "harris", "newsom", "desantis",
+                  "political", "government", "administration", "policy"]),
+]
 
 TAG_KEYWORDS = {
-    "usa": ["usa", "us ", "america", "american", "trump", "biden"],
-    "japan": ["japan", "japanese", "tokyo"],
-    "ukraine": ["ukraine", "russia", "putin"],
-    "fed": ["fed", "federal reserve", "rate cut", "interest rate"],
-    "crypto": ["bitcoin", "btc", "crypto", "ethereum"],
-    "ai": ["openai", "gpt", "ai", "artificial intelligence", "llm"],
-    "tech": ["apple", "google", "microsoft", "meta"],
-    "sports": ["world cup", "olympics", "nba", "nfl"],
+    "usa":     ["usa", " us ", "america", "american", "trump", "biden", "harris",
+                "congress", "senate", "white house"],
+    "europe":  ["europe", "european", "eu ", "france", "germany", "spain", "uk",
+                "britain", "italy", "netherlands"],
+    "crypto":  ["bitcoin", "btc", "crypto", "ethereum", "eth", "solana"],
+    "ai":      ["openai", "gpt", "ai ", "artificial intelligence", "llm"],
+    "sports":  ["world cup", "fifa", "nba", "nfl", "nhl", "olympics", "championship"],
+    "fed":     ["fed", "federal reserve", "rate cut", "interest rate", "inflation"],
+    "tech":    ["apple", "google", "microsoft", "meta", "amazon", "nvidia"],
+    "politics":["election", "president", "nomination", "vote", "senator"],
 }
 
 
@@ -40,13 +57,19 @@ def _infer_tags(question: str) -> list[str]:
     for tag, keywords in TAG_KEYWORDS.items():
         if any(kw in text for kw in keywords):
             tags.append(tag)
-    return tags
+    return tags or ["other"]
 
 
-def _infer_category(tags: list[str], question: str) -> str:
-    text = " ".join(tags + [question]).lower()
-    for cat, keywords in CATEGORY_MAP.items():
+def _infer_category(api_tags: list, question: str) -> str:
+    """Infer category from question text. Question takes precedence over api_tags."""
+    text = question.lower()
+    for cat, keywords in CATEGORY_MAP:
         if any(kw in text for kw in keywords):
+            return cat
+    # Fallback to api_tags if question didn't match
+    tag_text = " ".join(api_tags).lower() if api_tags else ""
+    for cat, keywords in CATEGORY_MAP:
+        if any(kw in tag_text for kw in keywords):
             return cat
     return "other"
 
@@ -98,7 +121,6 @@ async def fetch_markets(limit: int = 100) -> list[dict]:
         resp = await client.get(url, params=params)
         resp.raise_for_status()
         data = resp.json()
-        # Gamma API sometimes returns dict with markets key, sometimes list
         if isinstance(data, dict):
             return data.get("markets", [])
         return data
@@ -107,18 +129,26 @@ async def fetch_markets(limit: int = 100) -> list[dict]:
 async def ingest_polymarket():
     logger.info("Fetching Polymarket markets...")
     markets_data = await fetch_markets(limit=100)
-    logger.info(f"Fetched {len(markets_data)} markets")
+    logger.info(f"Fetched {len(markets_data)} markets from Polymarket API")
 
     async with AsyncSessionLocal() as session:
+        ingested = 0
         for m in markets_data:
             slug = m.get("slug") or m.get("id")
             if not slug:
                 continue
 
             question = m.get("question", "")
+            if not question:
+                continue
+
             api_tags = m.get("tags", []) or []
-            tags = api_tags if api_tags else _infer_tags(question)
-            category = _infer_category(tags, question)
+            # api_tags from Polymarket are often strings like ["Politics"] or dicts
+            if api_tags and isinstance(api_tags[0], dict):
+                api_tags = [t.get("label", "") for t in api_tags]
+
+            category = _infer_category(api_tags, question)
+            tags = _infer_tags(question)
 
             probability = _parse_probability(m.get("outcomePrices"))
             volume = _parse_volume(m.get("volume"))
@@ -134,9 +164,8 @@ async def ingest_polymarket():
                 .limit(1)
             )
             prev_point = prev_result.scalar_one_or_none()
-            recent_movement = probability - prev_point.probability if prev_point else 0
+            recent_movement = round(probability - prev_point.probability, 4) if prev_point else 0
 
-            # Upsert market
             stmt = insert(Market).values(
                 id=slug,
                 title=question,
@@ -166,13 +195,13 @@ async def ingest_polymarket():
             )
             await session.execute(stmt)
 
-            # Insert price point
             price_point = PricePoint(
                 market_id=slug,
                 probability=probability,
                 volume=volume,
             )
             session.add(price_point)
+            ingested += 1
 
         await session.commit()
-    logger.info("Polymarket ingestion complete")
+    logger.info(f"Polymarket ingestion complete: {ingested} markets upserted")

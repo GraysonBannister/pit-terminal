@@ -298,12 +298,15 @@ async def run_opportunity_engine():
     async with AsyncSessionLocal() as session:
         result = await session.execute(
             select(Market)
-            .where(Market.volume > 0)
+            .where(Market.volume > 500_000)       # meaningful volume only
+            .where(Market.probability >= 0.03)    # skip near-certain-no markets
+            .where(Market.probability <= 0.97)    # skip near-certain-yes markets
             .order_by(desc(Market.volume))
-            .limit(50)
+            .limit(30)
         )
         markets = result.scalars().all()
         market_ids = [m.id for m in markets]
+        logger.info(f"Opportunity engine processing {len(market_ids)} markets with meaningful probability")
 
         cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
         news_result = await session.execute(
