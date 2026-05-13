@@ -1,39 +1,35 @@
-import os
 import logging
 
-from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 
 logger = logging.getLogger(__name__)
-scheduler = BackgroundScheduler()
+scheduler = AsyncIOScheduler()
 
 
-def _ingest_polymarket():
+async def _ingest_polymarket():
     logger.info("Running Polymarket ingestion...")
     try:
         from ingestion.polymarket import ingest_polymarket
-        import asyncio
-        asyncio.run(ingest_polymarket())
+        await ingest_polymarket()
     except Exception as e:
         logger.error(f"Polymarket ingestion failed: {e}")
 
 
-def _ingest_news():
+async def _ingest_news():
     logger.info("Running news ingestion...")
     try:
         from ingestion.news import ingest_news
-        import asyncio
-        asyncio.run(ingest_news())
+        await ingest_news()
     except Exception as e:
         logger.error(f"News ingestion failed: {e}")
 
 
-def _run_opportunity_engine():
+async def _run_opportunity_engine():
     logger.info("Running opportunity engine...")
     try:
         from ai.opportunity_engine import run_opportunity_engine
-        import asyncio
-        asyncio.run(run_opportunity_engine())
+        await run_opportunity_engine()
     except Exception as e:
         logger.error(f"Opportunity engine failed: {e}")
 
