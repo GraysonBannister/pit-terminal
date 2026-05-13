@@ -1,15 +1,30 @@
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api";
 
+console.log("[PIT API] API_BASE:", API_BASE);
+
 async function fetchJson<T>(path: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.text().catch(() => "Unknown error");
-    throw new Error(`API ${res.status}: ${err}`);
+  const url = `${API_BASE}${path}`;
+  console.log(`[PIT API] Fetching: ${url}`);
+  const start = performance.now();
+  try {
+    const res = await fetch(url, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+    });
+    const duration = (performance.now() - start).toFixed(1);
+    if (!res.ok) {
+      const err = await res.text().catch(() => "Unknown error");
+      console.error(`[PIT API] Error ${res.status} on ${path} (${duration}ms):`, err);
+      throw new Error(`API ${res.status}: ${err}`);
+    }
+    const data = await res.json();
+    console.log(`[PIT API] Success ${path} (${duration}ms), items:`, Array.isArray(data) ? data.length : "object");
+    return data as T;
+  } catch (err) {
+    const duration = (performance.now() - start).toFixed(1);
+    console.error(`[PIT API] Network/fetch error on ${path} (${duration}ms):`, err);
+    throw err;
   }
-  return res.json() as Promise<T>;
 }
 
 export interface ApiMarket {

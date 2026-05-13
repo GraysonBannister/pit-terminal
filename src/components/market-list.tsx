@@ -9,7 +9,7 @@ import { TrendingUp, TrendingDown, Minus, LineChart } from "lucide-react";
 import Link from "next/link";
 
 export function MarketList() {
-  const { markets, loading, usingMock } = useMarkets();
+  const { markets, loading, usingMock, error } = useMarkets();
 
   if (loading && markets.length === 0) {
     return (
@@ -36,8 +36,13 @@ export function MarketList() {
           </div>
           <div className="flex items-center gap-2">
             {usingMock && (
-              <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
-                Demo Data
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                DEMO DATA
+              </Badge>
+            )}
+            {error && (
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                API Error
               </Badge>
             )}
             <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20 text-[10px]">
@@ -47,6 +52,11 @@ export function MarketList() {
         </div>
       </CardHeader>
       <ScrollArea className="flex-1 px-4 pb-4">
+        {error && markets.length === 0 && (
+          <div className="rounded-lg border border-rose-800 bg-rose-950/20 p-4 mb-4">
+            <p className="text-xs text-rose-300">Failed to load markets. Check browser console for details.</p>
+          </div>
+        )}
         <div className="space-y-2">
           {markets.map((market) => (
             <Link

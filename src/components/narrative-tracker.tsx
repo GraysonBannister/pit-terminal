@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrendingUp, TrendingDown, Activity, Clock } from "lucide-react";
 
 export function NarrativeTracker() {
-  const { narratives, loading, usingMock } = useNarratives();
+  const { narratives, loading, usingMock, error } = useNarratives();
 
   if (loading && narratives.length === 0) {
     return (
@@ -33,14 +33,26 @@ export function NarrativeTracker() {
               Narrative Shift Tracker
             </CardTitle>
           </div>
-          {usingMock && (
-            <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
-              Demo Data
-            </Badge>
-          )}
+          <div className="flex items-center gap-2">
+            {usingMock && (
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                DEMO DATA
+              </Badge>
+            )}
+            {error && (
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                API Error
+              </Badge>
+            )}
+          </div>
         </div>
       </CardHeader>
       <ScrollArea className="flex-1 px-4 pb-4">
+        {error && narratives.length === 0 && (
+          <div className="rounded-lg border border-rose-800 bg-rose-950/20 p-4 mb-4">
+            <p className="text-xs text-rose-300">Failed to load narratives. Check browser console for details.</p>
+          </div>
+        )}
         <div className="space-y-3">
           {narratives
             .sort((a, b) => b.velocity - a.velocity)

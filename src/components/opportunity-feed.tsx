@@ -99,7 +99,7 @@ function OpportunityCard({ opp }: { opp: any }) {
 }
 
 export function OpportunityFeed() {
-  const { opportunities, loading, usingMock } = useOpportunities();
+  const { opportunities, loading, usingMock, error } = useOpportunities();
 
   if (loading && opportunities.length === 0) {
     return (
@@ -126,8 +126,13 @@ export function OpportunityFeed() {
           </div>
           <div className="flex items-center gap-2">
             {usingMock && (
-              <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
-                Demo Data
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                DEMO DATA
+              </Badge>
+            )}
+            {error && (
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                API Error
               </Badge>
             )}
             <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">
@@ -137,6 +142,11 @@ export function OpportunityFeed() {
         </div>
       </CardHeader>
       <ScrollArea className="flex-1 px-4 pb-4">
+        {error && opportunities.length === 0 && (
+          <div className="rounded-lg border border-rose-800 bg-rose-950/20 p-4 mb-4">
+            <p className="text-xs text-rose-300">Failed to load opportunities. Check browser console for details.</p>
+          </div>
+        )}
         <div className="space-y-3">
           {opportunities
             .sort((a, b) => b.confidence_score - a.confidence_score)

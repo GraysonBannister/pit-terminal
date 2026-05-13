@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { GitCompare, AlertTriangle } from "lucide-react";
 
 export function CrossMarketTable() {
-  const { comparisons, loading, usingMock } = useCrossMarket();
+  const { comparisons, loading, usingMock, error } = useCrossMarket();
 
   if (loading && comparisons.length === 0) {
     return (
@@ -35,8 +35,13 @@ export function CrossMarketTable() {
           </div>
           <div className="flex items-center gap-2">
             {usingMock && (
-              <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
-                Demo Data
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                DEMO DATA
+              </Badge>
+            )}
+            {error && (
+              <Badge variant="outline" className="text-[10px] text-rose-400 border-rose-500/30 bg-rose-500/10">
+                API Error
               </Badge>
             )}
             <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
@@ -46,6 +51,11 @@ export function CrossMarketTable() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {error && comparisons.length === 0 && (
+          <div className="rounded-lg border border-rose-800 bg-rose-950/20 p-4">
+            <p className="text-xs text-rose-300">Failed to load cross-market data. Check browser console for details.</p>
+          </div>
+        )}
         {comparisons.map((comp, i) => {
           const maxProb = Math.max(...comp.markets.map((m) => m.probability));
           const minProb = Math.min(...comp.markets.map((m) => m.probability));
