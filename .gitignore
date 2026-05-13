@@ -39,3 +39,33 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Python backend
+/backend/.venv/
+/backend/__pycache__/
+/backend/**/__pycache__/
+/backend/*.py[cod]
+/backend/*$py.class
+/backend/*.so
+/backend/.env
+/backend/.env.local
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Docker
+.dockerignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OmniCode editor metadata
+.omnicode/
+
+# OS
+Thumbs.db

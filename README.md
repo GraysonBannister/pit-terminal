@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# PIT Terminal — Prediction Intelligence
 
-## Getting Started
+Real-time probability intelligence infrastructure for prediction markets. Detects when market-implied probability materially diverges from reality-adjusted probability.
 
-First, run the development server:
+## Overview
+
+PIT Terminal is an MVP built from the [Prediction Intelligence Terminal framework](overview.txt). It tracks prediction markets, aggregates information signals, and surfaces potentially mispriced opportunities.
+
+**Core positioning:** Analytics and intelligence, not gambling.
+
+## Features
+
+- **Live Opportunity Feed** — Ranked mispricing opportunities with confidence scores, supporting signals, and divergence classification (undervalued / overvalued)
+- **Narrative Shift Tracker** — Sentiment changes, attention spikes, narrative velocity, and source volume across tracked topics
+- **Cross-Market Arbitrage** — Probability comparison across Polymarket, Kalshi, crypto markets, and more with disagreement scoring
+- **Market Detail Pages** — Price history charts, AI summaries, sentiment analysis gauges, and relevant news aggregation
+- **Dark Intelligence Terminal UI** — Professional analytics aesthetic optimized for monitoring
+
+## Tech Stack
+
+- **Frontend:** Next.js 16, React 19, TypeScript, Tailwind CSS, shadcn/ui
+- **Charts:** Recharts
+- **Icons:** Lucide React
+
+## Data
+
+The MVP uses realistic demo data covering:
+- Politics (US election, Japan snap election, Ukraine ceasefire)
+- Macro (Fed rate cuts, recession probability)
+- Tech (OpenAI GPT-5, Apple Vision Pro)
+- Crypto (Bitcoin $100K)
+
+Each market includes price history, sentiment scores, AI summaries, and related news items.
+
+## Running Locally
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Pages
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Route | Description |
+|-------|-------------|
+| `/` | Dashboard with opportunity feed, narrative tracker, cross-market table, and market list |
+| `/opportunities` | Full-screen opportunity feed |
+| `/narratives` | Full-screen narrative shift tracker |
+| `/cross-market` | Cross-market arbitrage comparisons |
+| `/markets` | All active markets |
+| `/market/[id]` | Individual market detail with chart, AI summary, sentiment, and news |
 
-## Learn More
+## Notes
 
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- This is an MVP with mock/demo data. Production would connect to live Polymarket/Kalshi APIs, news feeds, and an AI interpretation pipeline.
+- The build currently works best in dev mode due to a known Next.js 16 + React 19 static generation compatibility issue. Use `npm run dev` for evaluation.

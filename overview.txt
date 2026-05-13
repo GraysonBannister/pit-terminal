@@ -1,0 +1,548 @@
+Prediction Intelligence Terminal — Framework
+
+Core Thesis
+
+Most prediction markets are not efficiently pricing reality.
+
+They are pricing:
+
+* attention
+* narrative momentum
+* emotional conviction
+* fragmented information
+* delayed propagation
+
+The system’s job is not:
+“predict the future.”
+
+The system’s job is:
+“detect when market-implied probability materially diverges from reality-adjusted probability.”
+
+This is fundamentally an information infrastructure business.
+
+⸻
+
+1. Product Positioning
+
+Initial Positioning
+
+“AI-powered prediction market intelligence and probability monitoring platform.”
+
+Avoid:
+
+* “AI predicts the future”
+* “guaranteed profits”
+* gambling-centric branding
+
+Lean toward:
+
+* analytics
+* intelligence
+* event monitoring
+* market probability infrastructure
+
+⸻
+
+2. Initial User Types
+
+Tier 1 — Advanced Retail Traders
+
+Users:
+
+* Polymarket users
+* Kalshi users
+* sports bettors
+* crypto traders
+* macro enthusiasts
+
+Pain points:
+
+* too many markets
+* fragmented information
+* slow research
+* narrative overload
+
+⸻
+
+Tier 2 — Content Creators
+
+Political creators, finance creators, macro analysts.
+
+Need:
+
+* narrative tracking
+* market sentiment
+* event probability shifts
+
+⸻
+
+Tier 3 — Research/Institutional
+
+Eventually:
+
+* quant researchers
+* media firms
+* hedge funds
+* political consultants
+
+Not initial target.
+
+⸻
+
+3. Core Product Structure
+
+A. Market Monitoring Layer
+
+Tracks:
+
+* Polymarket
+* Kalshi
+* sportsbooks
+* crypto prediction markets
+* election betting sites
+* macro event contracts
+
+Data Captured
+
+* market title
+* implied probability
+* volume
+* liquidity
+* spread
+* recent movement
+* resolution date
+* market category
+
+⸻
+
+B. Information Aggregation Layer
+
+Sources
+
+News:
+
+* Reuters
+* AP
+* Bloomberg
+* Nikkei
+* Kyodo
+* local news sites
+
+Social:
+
+* X/Twitter
+* Reddit
+* YouTube transcripts
+* Discord/Telegram eventually
+
+Public Data:
+
+* weather
+* polls
+* government releases
+* earnings
+* sports injury reports
+* economic calendars
+
+⸻
+
+C. AI Interpretation Layer
+
+This is the core moat.
+
+Functions
+
+1. Event Extraction
+
+Example:
+“Japanese PM announces snap election.”
+
+System tags:
+
+* politics
+* Japan
+* election
+* timeline
+* parties involved
+
+⸻
+
+2. Sentiment Analysis
+
+Not generic sentiment.
+
+Need:
+
+* confidence
+* uncertainty
+* polarization
+* narrative acceleration
+
+⸻
+
+3. Narrative Velocity
+
+Measures:
+“How quickly is belief changing?”
+
+Often more important than raw sentiment.
+
+⸻
+
+4. Contradiction Detection
+
+Example:
+
+* market probability falling
+* credible news becoming more favorable
+
+Potential inefficiency flagged.
+
+⸻
+
+5. Source Credibility Weighting
+
+Important.
+
+Government statement > random viral tweet.
+
+Need reliability scoring.
+
+⸻
+
+4. Opportunity Engine
+
+The most important system.
+
+Produces:
+“Potentially mispriced markets.”
+
+⸻
+
+Opportunity Score Formula
+
+Factors:
+
+* information divergence
+* narrative acceleration
+* liquidity weakness
+* spread inefficiency
+* cross-market disagreement
+* source reliability
+* historical calibration
+
+Output:
+0–100 confidence score.
+
+⸻
+
+5. Frontend Structure
+
+Dashboard
+
+Sections
+
+A. Live Opportunity Feed
+
+Example:
+“Ukraine ceasefire probability potentially undervalued.”
+
+Shows:
+
+* market odds
+* AI-estimated range
+* confidence
+* supporting signals
+
+⸻
+
+B. Narrative Shift Tracker
+
+Tracks:
+
+* sentiment changes
+* attention spikes
+* emerging narratives
+
+⸻
+
+C. Cross-Market Arbitrage
+
+Compares:
+
+* Polymarket
+* Kalshi
+* sportsbooks
+* crypto markets
+
+Flags disagreements.
+
+⸻
+
+D. Market Detail Page
+
+Contains:
+
+* price history
+* AI summaries
+* relevant news
+* social sentiment
+* historical comparisons
+* confidence analysis
+
+⸻
+
+6. AI Architecture
+
+Initial Stack
+
+LLM Usage
+
+Use models for:
+
+* summarization
+* extraction
+* classification
+* contradiction analysis
+
+Do NOT use LLMs for:
+
+* direct probability prediction
+* raw forecasting
+
+⸻
+
+Better Statistical Components
+
+Use:
+
+* Bayesian updating
+* ensemble scoring
+* historical calibration
+* logistic regression
+* probability aggregation
+
+LLMs should augment structured systems.
+
+Not replace them.
+
+⸻
+
+7. Technical Stack
+
+Backend
+
+Likely ideal:
+
+* Python
+* FastAPI
+* PostgreSQL
+* Redis
+* Kafka eventually
+
+⸻
+
+AI/Data
+
+* OpenAI APIs
+* local embeddings
+* vector DB
+* event clustering pipeline
+
+⸻
+
+Frontend
+
+You already fit well with:
+
+* Next.js
+* React
+* Tailwind
+* Supabase initially
+
+⸻
+
+8. Data Pipeline
+
+Continuous Loop
+
+Step 1
+
+Ingest data.
+
+Step 2
+
+Normalize entities/events.
+
+Step 3
+
+Cluster related information.
+
+Step 4
+
+Update narrative states.
+
+Step 5
+
+Compare against market pricing.
+
+Step 6
+
+Generate opportunities.
+
+Step 7
+
+Rank by confidence.
+
+⸻
+
+9. Early MVP
+
+Do NOT overbuild initially.
+
+MVP Scope
+
+Only:
+
+* Polymarket
+* politics
+* macro
+* tech events
+
+Features:
+
+* live market scraper
+* AI summaries
+* sentiment tracking
+* opportunity feed
+* market movement alerts
+
+No automated trading initially.
+
+⸻
+
+10. Real Moats
+
+Most important section.
+
+Your moat is NOT:
+“using AI.”
+
+Everyone can use AI.
+
+Your moat becomes:
+
+* proprietary event graphs
+* historical calibration data
+* multilingual monitoring
+* custom weighting systems
+* latency advantages
+* niche market specialization
+* accumulated probability intelligence
+
+⸻
+
+11. Strong Potential Niches
+
+You should likely specialize initially.
+
+Best candidates:
+
+* Japan/Asia geopolitics
+* anime/gaming/media prediction
+* macroeconomic events
+* elections
+* crypto regulation
+* supply chain/manufacturing events
+
+Your Japan knowledge is an actual edge.
+
+⸻
+
+12. Monetization
+
+Phase 1
+
+Subscription SaaS.
+
+Example
+
+Free:
+
+* delayed data
+* limited alerts
+
+Pro:
+
+* live monitoring
+* AI opportunity engine
+* advanced filters
+* probability analysis
+
+$20–100/month realistic.
+
+⸻
+
+Phase 2
+
+API access.
+
+⸻
+
+Phase 3
+
+Institutional dashboards.
+
+⸻
+
+13. Biggest Failure Modes
+
+Overfitting
+
+Most common.
+
+⸻
+
+Hallucinated confidence
+
+Very dangerous.
+
+⸻
+
+Social media manipulation
+
+Especially political markets.
+
+⸻
+
+Liquidity blindness
+
+Low liquidity creates fake signals.
+
+⸻
+
+False precision
+
+Avoid fake decimal certainty.
+
+⸻
+
+14. Strongest Strategic Direction
+
+The optimal version of this company is probably NOT:
+“AI gambling bot.”
+
+It is:
+“real-time probability intelligence infrastructure.”
+
+That positioning:
+
+* scales better
+* avoids degenerate branding
+* attracts higher-value customers
+* enables enterprise expansion
+* survives regulation better
+* builds actual defensibility
+
+The terminal is the wedge.
+The long-term asset is the probability intelligence network.
