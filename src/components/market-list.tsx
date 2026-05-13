@@ -51,7 +51,7 @@ export function MarketList() {
           </div>
         </div>
       </CardHeader>
-      <ScrollArea className="flex-1 px-4 pb-4">
+      <ScrollArea className="flex-1 px-4 pb-4 overflow-y-auto">
         {error && markets.length === 0 && (
           <div className="rounded-lg border border-rose-800 bg-rose-950/20 p-4 mb-4">
             <p className="text-xs text-rose-300">Failed to load markets. Check browser console for details.</p>

@@ -22,7 +22,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <CrossMarketTable />
+      <div className="max-h-[600px]">
+        <CrossMarketTable />
+      </div>
 
       <div className="h-[520px]">
         <MarketList />

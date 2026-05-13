@@ -9,7 +9,9 @@ export default function CrossMarketPage() {
           Compare probabilities across Polymarket, Kalshi, sportsbooks, and crypto markets.
         </p>
       </div>
-      <CrossMarketTable />
+      <div className="h-[720px]">
+        <CrossMarketTable />
+      </div>
     </div>
   );
 }

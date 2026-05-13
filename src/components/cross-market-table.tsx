@@ -6,6 +6,7 @@ import { ClientTime } from "@/components/client-time";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GitCompare, AlertTriangle } from "lucide-react";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 export function CrossMarketTable() {
   const { comparisons, loading, usingMock, error } = useCrossMarket();
@@ -24,7 +25,7 @@ export function CrossMarketTable() {
   }
 
   return (
-    <Card className="border-slate-800 bg-slate-950">
+    <Card className="border-slate-800 bg-slate-950 h-full flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -50,7 +51,8 @@ export function CrossMarketTable() {
           </div>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <ScrollArea className="flex-1 overflow-y-auto">
+        <CardContent className="space-y-4">
         {error && comparisons.length === 0 && (
           <div className="rounded-lg border border-rose-800 bg-rose-950/20 p-4">
             <p className="text-xs text-rose-300">Failed to load cross-market data. Check browser console for details.</p>
@@ -133,7 +135,8 @@ export function CrossMarketTable() {
             </div>
           );
         })}
-      </CardContent>
+        </CardContent>
+      </ScrollArea>
     </Card>
   );
 }
