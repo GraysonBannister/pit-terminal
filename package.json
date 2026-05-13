@@ -7,7 +7,8 @@
     "dev:all": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
     "dev:frontend": "next dev --port 3001",
     "dev:backend": "cd backend && source venv/bin/activate && python -m uvicorn main:app --host 0.0.0.0 --port 8000",
-    "build": "next build",
+    "postinstall": "patch-package",
+    "build": "next build --webpack",
     "start": "next start",
     "lint": "eslint"
   },
@@ -17,9 +18,9 @@
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
     "lucide-react": "^1.14.0",
-    "next": "^15.3.4",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "next": "16.2.6",
+    "react": "19.2.6",
+    "react-dom": "19.2.6",
     "recharts": "^3.8.1",
     "shadcn": "^4.7.0",
     "tailwind-merge": "^3.6.0",
@@ -38,6 +39,7 @@
     "concurrently": "^9.2.1",
     "eslint": "^9",
     "eslint-config-next": "^15.3.4",
+    "patch-package": "^8.0.1",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

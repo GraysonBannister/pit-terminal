@@ -1,5 +1,7 @@
 import { OpportunityFeed } from "@/components/opportunity-feed";
 
+export const dynamic = "force-dynamic";
+
 export default function OpportunitiesPage() {
   return (
     <div className="space-y-6">

@@ -1,5 +1,7 @@
 import { MarketList } from "@/components/market-list";
 
+export const dynamic = "force-dynamic";
+
 export default function MarketsPage() {
   return (
     <div className="space-y-6">

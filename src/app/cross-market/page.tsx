@@ -1,5 +1,7 @@
 import { CrossMarketTable } from "@/components/cross-market-table";
 
+export const dynamic = "force-dynamic";
+
 export default function CrossMarketPage() {
   return (
     <div className="space-y-6">

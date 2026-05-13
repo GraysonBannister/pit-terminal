@@ -1,0 +1,64 @@
+diff --git a/node_modules/next/dist/build/utils.js b/node_modules/next/dist/build/utils.js
+index 82b6eb4..c73f8a1 100644
+--- a/node_modules/next/dist/build/utils.js
++++ b/node_modules/next/dist/build/utils.js
+@@ -569,7 +569,7 @@ async function isPageStatic({ dir, page, distDir, configFileName, httpAgentOptio
+     // Skip page data collection for synthetic _global-error routes
+     if (page === _constants1.UNDERSCORE_GLOBAL_ERROR_ROUTE) {
+         return {
+-            isStatic: true,
++            isStatic: false,
+             isRoutePPREnabled: false,
+             prerenderFallbackMode: undefined,
+             prerenderedRoutes: undefined,
+diff --git a/node_modules/next/dist/export/routes/app-page.js b/node_modules/next/dist/export/routes/app-page.js
+index 077bd53..65aad3a 100644
+--- a/node_modules/next/dist/export/routes/app-page.js
++++ b/node_modules/next/dist/export/routes/app-page.js
+@@ -37,6 +37,8 @@ async function exportAppPage(req, res, page, path, pathname, query, fallbackRout
+     if (page === _entryconstants.UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
+         isDefaultGlobalError = true;
+         pathname = '/500';
++        // Skip static rendering of /_global-error (client component, causes dual-React issues)
++        return { type: 'app-page', metadata: { status: 200 }, html: '<!DOCTYPE html><html><body><p>Error</p></body></html>' };
+     }
+     try {
+         const result = await (0, _modulerender.lazyRenderAppPage)(new _node.NodeNextRequest(req), new _node.NodeNextResponse(res), pathname, query, fallbackRouteParams, renderOpts, undefined, sharedContext);
+diff --git a/node_modules/next/dist/shared/lib/html-context.shared-runtime.js b/node_modules/next/dist/shared/lib/html-context.shared-runtime.js
+index bd3b41a..4269e0e 100644
+--- a/node_modules/next/dist/shared/lib/html-context.shared-runtime.js
++++ b/node_modules/next/dist/shared/lib/html-context.shared-runtime.js
+@@ -12,29 +12,15 @@ function _export(target, all) {
+         get: all[name]
+     });
+ }
++// Re-export from the compiled runtime to ensure single React instance
++const _pagesRuntime = require("../compiled/next-server/pages.runtime.prod.js");
+ _export(exports, {
+     HtmlContext: function() {
+-        return HtmlContext;
++        return _pagesRuntime.HtmlContext;
+     },
+     useHtmlContext: function() {
+-        return useHtmlContext;
++        return _pagesRuntime.useHtmlContext;
+     }
+ });
+-const _react = require("react");
+-const HtmlContext = (0, _react.createContext)(undefined);
+-if (process.env.NODE_ENV !== 'production') {
+-    HtmlContext.displayName = 'HtmlContext';
+-}
+-function useHtmlContext() {
+-    const context = (0, _react.useContext)(HtmlContext);
+-    if (!context) {
+-        throw Object.defineProperty(new Error(`<Html> should not be imported outside of pages/_document.\n` + 'Read more: https://nextjs.org/docs/messages/no-document-import-in-page'), "__NEXT_ERROR_CODE", {
+-            value: "E67",
+-            enumerable: false,
+-            configurable: true
+-        });
+-    }
+-    return context;
+-}
+ 
+ //# sourceMappingURL=html-context.shared-runtime.js.map

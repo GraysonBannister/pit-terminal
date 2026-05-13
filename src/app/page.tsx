@@ -3,6 +3,8 @@ import { NarrativeTracker } from "@/components/narrative-tracker";
 import { CrossMarketTable } from "@/components/cross-market-table";
 import { MarketList } from "@/components/market-list";
 
+export const dynamic = "force-dynamic";
+
 export default function DashboardPage() {
   return (
     <div className="space-y-6">

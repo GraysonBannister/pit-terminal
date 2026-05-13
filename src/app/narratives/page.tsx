@@ -1,5 +1,7 @@
 import { NarrativeTracker } from "@/components/narrative-tracker";
 
+export const dynamic = "force-dynamic";
+
 export default function NarrativesPage() {
   return (
     <div className="space-y-6">
