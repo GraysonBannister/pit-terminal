@@ -99,7 +99,7 @@ function OpportunityCard({ opp }: { opp: any }) {
 }
 
 export function OpportunityFeed() {
-  const { opportunities, loading, error } = useOpportunities();
+  const { opportunities, loading, usingMock } = useOpportunities();
 
   if (loading && opportunities.length === 0) {
     return (
@@ -109,19 +109,6 @@ export function OpportunityFeed() {
         </CardHeader>
         <CardContent className="flex-1 flex items-center justify-center">
           <p className="text-sm text-slate-500">Loading opportunities...</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (error && opportunities.length === 0) {
-    return (
-      <Card className="border-slate-800 bg-slate-950 h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-slate-100">Live Opportunity Feed</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-rose-400">{error}</p>
         </CardContent>
       </Card>
     );
@@ -137,9 +124,16 @@ export function OpportunityFeed() {
               Live Opportunity Feed
             </CardTitle>
           </div>
-          <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">
-            {opportunities.length} Active
-          </Badge>
+          <div className="flex items-center gap-2">
+            {usingMock && (
+              <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
+                Demo Data
+              </Badge>
+            )}
+            <Badge className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">
+              {opportunities.length} Active
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <ScrollArea className="flex-1 px-4 pb-4">

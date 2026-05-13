@@ -2,19 +2,25 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiNewsItem } from "@/lib/api";
+import { mockNews } from "@/lib/mockApi";
 
 export function useNews(tag?: string) {
   const [news, setNews] = useState<ApiNewsItem[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [usingMock, setUsingMock] = useState(false);
 
   const fetchNews = useCallback(async () => {
     try {
-      setError(null);
+      setLoading(true);
       const data = await api.news.list(tag);
       setNews(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch news");
+      setUsingMock(false);
+    } catch {
+      const filtered = tag
+        ? mockNews.filter((n) => n.tags.includes(tag))
+        : mockNews;
+      setNews(filtered);
+      setUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -26,5 +32,5 @@ export function useNews(tag?: string) {
     return () => clearInterval(interval);
   }, [fetchNews]);
 
-  return { news, loading, error, refetch: fetchNews };
+  return { news, loading, usingMock, refetch: fetchNews };
 }

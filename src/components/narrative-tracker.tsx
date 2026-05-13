@@ -8,7 +8,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { TrendingUp, TrendingDown, Activity, Clock } from "lucide-react";
 
 export function NarrativeTracker() {
-  const { narratives, loading, error } = useNarratives();
+  const { narratives, loading, usingMock } = useNarratives();
 
   if (loading && narratives.length === 0) {
     return (
@@ -23,27 +23,21 @@ export function NarrativeTracker() {
     );
   }
 
-  if (error && narratives.length === 0) {
-    return (
-      <Card className="border-slate-800 bg-slate-950 h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-slate-100">Narrative Shift Tracker</CardTitle>
-        </CardHeader>
-        <CardContent className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-rose-400">{error}</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card className="border-slate-800 bg-slate-950 h-full flex flex-col">
       <CardHeader className="pb-3">
-        <div className="flex items-center gap-2">
-          <Activity className="h-4 w-4 text-indigo-400" />
-          <CardTitle className="text-sm font-semibold text-slate-100">
-            Narrative Shift Tracker
-          </CardTitle>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Activity className="h-4 w-4 text-indigo-400" />
+            <CardTitle className="text-sm font-semibold text-slate-100">
+              Narrative Shift Tracker
+            </CardTitle>
+          </div>
+          {usingMock && (
+            <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
+              Demo Data
+            </Badge>
+          )}
         </div>
       </CardHeader>
       <ScrollArea className="flex-1 px-4 pb-4">

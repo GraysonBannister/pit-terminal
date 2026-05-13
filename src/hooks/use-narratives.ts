@@ -2,19 +2,25 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiNarrative } from "@/lib/api";
+import { mockNarratives } from "@/lib/mockApi";
 
 export function useNarratives(category?: string) {
   const [narratives, setNarratives] = useState<ApiNarrative[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [usingMock, setUsingMock] = useState(false);
 
   const fetchNarratives = useCallback(async () => {
     try {
-      setError(null);
+      setLoading(true);
       const data = await api.narratives.list(category);
       setNarratives(data);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to fetch narratives");
+      setUsingMock(false);
+    } catch {
+      const filtered = category
+        ? mockNarratives.filter((n) => n.category === category)
+        : mockNarratives;
+      setNarratives(filtered.sort((a, b) => b.velocity - a.velocity));
+      setUsingMock(true);
     } finally {
       setLoading(false);
     }
@@ -26,5 +32,5 @@ export function useNarratives(category?: string) {
     return () => clearInterval(interval);
   }, [fetchNarratives]);
 
-  return { narratives, loading, error, refetch: fetchNarratives };
+  return { narratives, loading, usingMock, refetch: fetchNarratives };
 }

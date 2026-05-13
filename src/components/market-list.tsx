@@ -9,7 +9,7 @@ import { TrendingUp, TrendingDown, Minus, LineChart } from "lucide-react";
 import Link from "next/link";
 
 export function MarketList() {
-  const { markets, loading, error } = useMarkets();
+  const { markets, loading, usingMock } = useMarkets();
 
   if (loading && markets.length === 0) {
     return (
@@ -19,19 +19,6 @@ export function MarketList() {
         </CardHeader>
         <div className="flex-1 flex items-center justify-center">
           <p className="text-sm text-slate-500">Loading markets...</p>
-        </div>
-      </Card>
-    );
-  }
-
-  if (error && markets.length === 0) {
-    return (
-      <Card className="border-slate-800 bg-slate-950 h-full flex flex-col">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-slate-100">Active Markets</CardTitle>
-        </CardHeader>
-        <div className="flex-1 flex items-center justify-center">
-          <p className="text-sm text-rose-400">{error}</p>
         </div>
       </Card>
     );
@@ -47,9 +34,16 @@ export function MarketList() {
               Active Markets
             </CardTitle>
           </div>
-          <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20 text-[10px]">
-            {markets.length} Markets
-          </Badge>
+          <div className="flex items-center gap-2">
+            {usingMock && (
+              <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
+                Demo Data
+              </Badge>
+            )}
+            <Badge className="bg-slate-500/10 text-slate-400 border-slate-500/20 text-[10px]">
+              {markets.length} Markets
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <ScrollArea className="flex-1 px-4 pb-4">
