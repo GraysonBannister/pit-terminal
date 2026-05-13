@@ -111,6 +111,7 @@ export interface ApiCrossMarket {
   }[];
   disagreement_score: number;
   arbitrage_hint: string | null;
+  sources?: string[];
 }
 
 export const api = {

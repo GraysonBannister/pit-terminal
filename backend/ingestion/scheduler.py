@@ -34,6 +34,30 @@ async def _loop_ingest_news():
         await asyncio.sleep(7200)
 
 
+async def _loop_ingest_kalshi():
+    from ingestion.kalshi import ingest_kalshi
+    while _running:
+        try:
+            logger.info("Running Kalshi ingestion...")
+            await ingest_kalshi()
+            logger.info("Kalshi ingestion complete")
+        except Exception as e:
+            logger.error(f"Kalshi ingestion failed: {e}")
+        await asyncio.sleep(300)
+
+
+async def _loop_ingest_twitter():
+    from ingestion.twitter import ingest_twitter
+    while _running:
+        try:
+            logger.info("Running Twitter ingestion...")
+            await ingest_twitter()
+            logger.info("Twitter ingestion complete")
+        except Exception as e:
+            logger.error(f"Twitter ingestion failed: {e}")
+        await asyncio.sleep(3600)
+
+
 async def _loop_opportunity_engine():
     from ai.opportunity_engine import run_opportunity_engine
     while _running:
@@ -54,7 +78,9 @@ def start_scheduler():
     loop = asyncio.get_running_loop()
     _tasks = [
         loop.create_task(_loop_ingest_polymarket()),
+        loop.create_task(_loop_ingest_kalshi()),
         loop.create_task(_loop_ingest_news()),
+        loop.create_task(_loop_ingest_twitter()),
         loop.create_task(_loop_opportunity_engine()),
     ]
     logger.info("Scheduler started")

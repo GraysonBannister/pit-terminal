@@ -71,6 +71,15 @@ export function CrossMarketTable() {
                   <p className="text-base font-semibold text-slate-100 leading-snug">
                     {comp.event_title}
                   </p>
+                  {comp.sources && comp.sources.length > 1 && (
+                    <div className="mt-1.5 flex items-center gap-1.5">
+                      {comp.sources.map((src) => (
+                        <Badge key={src} variant="outline" className="text-[10px] text-slate-400 border-slate-700 bg-slate-900">
+                          {src}
+                        </Badge>
+                      ))}
+                    </div>
+                  )}
                   {comp.arbitrage_hint && (
                     <div className="mt-2 flex items-center gap-2 text-sm text-amber-400">
                       <AlertTriangle className="h-4 w-4" />

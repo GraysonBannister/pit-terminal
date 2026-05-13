@@ -9,6 +9,7 @@ from database import AsyncSessionLocal
 from models import Market, NewsItem, Opportunity, NarrativeShift
 from ai.summarizer import generate_market_summary
 from ai.sentiment import analyze_sentiment
+from ai.event_extractor import extract_event, detect_contradiction
 
 logger = logging.getLogger(__name__)
 
@@ -73,8 +74,19 @@ def _build_signals(
     spread_score: float,
     news_signal: float,
     recent_news: list[NewsItem],
+    contradiction_signals: list[dict] | None = None,
 ) -> list[dict]:
     signals = []
+
+    if contradiction_signals:
+        best = max(contradiction_signals, key=lambda s: s.get("divergence_magnitude", 0))
+        signals.append({
+            "type": "contradiction",
+            "label": "News-Market Divergence",
+            "description": best.get("reasoning", "News implies different probability than market pricing")[:120],
+            "strength": min(1.0, best.get("divergence_magnitude", 0)),
+            "event_type": best.get("event_type", "unknown"),
+        })
 
     if divergence_score > 0.3:
         signals.append({
@@ -159,6 +171,7 @@ async def _process_single_market(market_id: str, all_news: list[NewsItem]) -> bo
             {"headline": n.headline, "source": n.source, "summary": n.summary}
             for n in news_items
         ]
+        contradiction_signals = []
 
         if news_dicts:
             sentiment = await analyze_sentiment(news_dicts)
@@ -168,6 +181,27 @@ async def _process_single_market(market_id: str, all_news: list[NewsItem]) -> bo
                 current_probability=market.probability,
                 recent_movement=market.recent_movement,
             )
+
+            # Run contradiction detection on top credible news item
+            contradiction_signals = []
+            top_news = [n for n in news_items if n.credibility > 0.7][:1]
+            for tn in top_news:
+                try:
+                    event_data = await extract_event(tn.headline, tn.summary or "")
+                    contradiction = await detect_contradiction(
+                        headline=tn.headline,
+                        event_data=event_data,
+                        market_title=market.title,
+                        market_probability=market.probability,
+                        recent_movement=market.recent_movement,
+                    )
+                    if contradiction.get("contradiction_detected"):
+                        contradiction_signals.append({
+                            "event_type": event_data.get("event_type", "unknown"),
+                            **contradiction,
+                        })
+                except Exception as e:
+                    logger.debug(f"Contradiction detection failed: {e}")
         else:
             sentiment = {
                 "confidence": 0.5,
@@ -185,6 +219,14 @@ async def _process_single_market(market_id: str, all_news: list[NewsItem]) -> bo
         adjusted_prob = _adjusted_probability(market.probability, sentiment)
         divergence = abs(adjusted_prob - market.probability)
         divergence_score = min(1.0, divergence * 3)
+
+        # Boost divergence score if contradiction detected
+        if contradiction_signals:
+            max_contradiction = max(s.get("divergence_magnitude", 0) for s in contradiction_signals)
+            max_conf = max(s.get("confidence", 0) for s in contradiction_signals)
+            divergence_boost = max_contradiction * max_conf * 0.5
+            divergence_score = min(1.0, divergence_score + divergence_boost)
+            logger.info(f"Contradiction detected for {market.title[:50]}: boost={divergence_boost:.2f}")
 
         narrative_velocity = sentiment.get("narrative_velocity", 0.5)
         liquidity_weakness = _normalize_liquidity(market.liquidity)
@@ -223,6 +265,7 @@ async def _process_single_market(market_id: str, all_news: list[NewsItem]) -> bo
         signals = _build_signals(
             divergence_score, narrative_velocity,
             liquidity_weakness, spread_score, news_signal, news_items,
+            contradiction_signals=contradiction_signals if contradiction_signals else None,
         )
 
         # Build AI estimated range

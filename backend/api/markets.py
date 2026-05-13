@@ -180,14 +180,18 @@ async def news_for_market(
 
 @router.post("/seed")
 async def seed_data():
-    """Run live ingestion instead of inserting hardcoded demo data."""
+    """Run live ingestion from all sources."""
     from ingestion.polymarket import ingest_polymarket
+    from ingestion.kalshi import ingest_kalshi
     from ingestion.news import ingest_news
+    from ingestion.twitter import ingest_twitter
     from ai.opportunity_engine import run_opportunity_engine
     await ingest_polymarket()
+    await ingest_kalshi()
     await ingest_news()
+    await ingest_twitter()
     await run_opportunity_engine()
-    return {"ok": True, "message": "Live ingestion complete. No demo data was inserted."}
+    return {"ok": True, "message": "Live ingestion complete from all sources."}
 
 
 @router.post("/clear-seed")
@@ -229,78 +233,193 @@ async def clear_seed_data():
 @router.get("/cross-market")
 async def list_cross_market(db: AsyncSession = Depends(get_db)):
     try:
-        # Only consider markets with meaningful probability and volume
+        # Fetch markets from all sources with meaningful activity
         result = await db.execute(
             select(Market)
-            .where(Market.volume > 500_000)
+            .where(Market.volume > 50_000)
             .where(Market.probability >= 0.03)
             .where(Market.probability <= 0.97)
             .order_by(desc(Market.volume))
-            .limit(100)
+            .limit(200)
         )
         markets = result.scalars().all()
 
         STOPS = {
             "will", "the", "a", "an", "in", "on", "at", "by", "to", "of", "for",
             "be", "is", "are", "was", "were", "before", "end", "year", "win", "wins",
-            "2024", "2025", "2026", "2027", "2028", "cup", "world", "the",
+            "2024", "2025", "2026", "2027", "2028", "2029", "2030",
+            "cup", "world", "the", "his", "her", "their", "this", "that",
         }
+
+        ENTITY_KEYWORDS = {
+            "trump": ["trump", "donald"],
+            "biden": ["biden", "joe"],
+            "harris": ["harris", "kamala"],
+            "elon": ["elon", "musk"],
+            "bitcoin": ["bitcoin", "btc"],
+            "ethereum": ["ethereum", "eth"],
+            "fed": ["fed", "federal reserve", "powell"],
+            "ukraine": ["ukraine", "russia", "putin", "zelensky"],
+            "china": ["china", "chinese", "xi jinping"],
+            "japan": ["japan", "japanese", "ldp"],
+            "openai": ["openai", "gpt", "chatgpt"],
+            "apple": ["apple", "iphone"],
+            "google": ["google", "alphabet"],
+            "microsoft": ["microsoft"],
+            "nvidia": ["nvidia"],
+            "amazon": ["amazon"],
+            "meta": ["meta", "facebook"],
+            "gta": ["gta", "grand theft auto"],
+            "mars": ["mars", "spacex"],
+            "election": ["election", "president", "presidential"],
+            "ipo": ["ipo", "public offering"],
+            "recession": ["recession", "gdp", "economic"],
+        }
+
+        def _extract_entities(title: str) -> set[str]:
+            """Extract named entities from market title."""
+            text = title.lower()
+            entities = set()
+            for entity, keywords in ENTITY_KEYWORDS.items():
+                if any(kw in text for kw in keywords):
+                    entities.add(entity)
+            return entities
 
         def _keywords(title: str) -> set[str]:
             words = title.lower().replace("?", "").replace(".", "").replace("'", "").split()
             return {w for w in words if len(w) > 3 and w not in STOPS}
 
         def _relatedness(m1: Market, m2: Market) -> float:
+            # Must be from different sources for true cross-market
+            if m1.source == m2.source:
+                return 0.0
+
+            # Entity overlap is strongest signal
+            e1 = _extract_entities(m1.title)
+            e2 = _extract_entities(m2.title)
+            entity_overlap = 0.0
+            if e1 and e2:
+                intersection = e1 & e2
+                union = e1 | e2
+                entity_overlap = len(intersection) / len(union) if union else 0.0
+
+            # Keyword overlap as secondary signal
             k1 = _keywords(m1.title)
             k2 = _keywords(m2.title)
-            if not k1 or not k2:
-                return 0.0
-            intersection = k1 & k2
-            union = k1 | k2
-            return len(intersection) / len(union) if union else 0.0
+            keyword_overlap = 0.0
+            if k1 and k2:
+                intersection = k1 & k2
+                union = k1 | k2
+                keyword_overlap = len(intersection) / len(union) if union else 0.0
+
+            # Category match bonus
+            cat_bonus = 0.15 if m1.category == m2.category else 0.0
+
+            # Weighted combination
+            score = (entity_overlap * 0.6) + (keyword_overlap * 0.3) + cat_bonus
+            return score
 
         def _event_title(cluster: list) -> str:
             """Build a readable event title from the cluster."""
-            # Use the most common meaningful words across titles
+            entities = set()
+            for m in cluster:
+                entities.update(_extract_entities(m.title))
+            if entities:
+                return "/".join(sorted(entities)).title()
+            # Fallback: common keywords
             common = _keywords(cluster[0].title)
             for m in cluster[1:]:
                 common &= _keywords(m.title)
             if common:
-                # Prefer longer words for readability
                 words = sorted(common, key=len, reverse=True)[:4]
                 return " ".join(sorted(words)).title()
-            # Fallback: use the highest-volume market's title, truncated
+            # Final fallback
             best = max(cluster, key=lambda m: m.volume)
             return best.title[:70].rstrip("?").strip()
 
-        # Build clusters of related markets
+        def _build_arbitrage_hint(cluster: list) -> str | None:
+            """Build a descriptive arbitrage hint."""
+            sources = {m.source for m in cluster}
+            if len(sources) < 2:
+                return None
+
+            probs = [m.probability for m in cluster]
+            max_prob = max(probs)
+            min_prob = min(probs)
+            disagreement = max_prob - min_prob
+
+            if disagreement < 0.03:
+                return None
+
+            # Find which sources are at extremes
+            max_market = max(cluster, key=lambda m: m.probability)
+            min_market = min(cluster, key=lambda m: m.probability)
+
+            if disagreement > 0.15:
+                return f"{max_market.source} pricing {disagreement*100:.0f}pts higher than {min_market.source}"
+            elif disagreement > 0.08:
+                return f"{max_market.source} vs {min_market.source}: {(disagreement*100):.0f}pt spread"
+            else:
+                return f"{max_market.source}/{min_market.source} diverge by {(disagreement*100):.0f}pts"
+
+        # Build clusters of related markets from DIFFERENT sources
         clusters = []
         used = set()
-        for i, m1 in enumerate(markets):
+
+        # Sort by source to ensure we check cross-source pairs
+        polymarket_markets = [m for m in markets if m.source == "Polymarket"]
+        other_markets = [m for m in markets if m.source != "Polymarket"]
+
+        for pm in polymarket_markets:
+            if pm.id in used:
+                continue
+            cluster = [pm]
+            used.add(pm.id)
+
+            for om in other_markets:
+                if om.id in used:
+                    continue
+                if _relatedness(pm, om) >= 0.35:
+                    cluster.append(om)
+                    used.add(om.id)
+
+            if len(cluster) >= 2:
+                clusters.append(cluster)
+
+        # Also find clusters among non-Polymarket sources
+        for i, m1 in enumerate(other_markets):
             if m1.id in used:
                 continue
             cluster = [m1]
             used.add(m1.id)
-            for m2 in markets[i + 1:]:
+            for m2 in other_markets[i + 1:]:
                 if m2.id in used:
                     continue
-                # Same category AND keyword overlap
-                if m1.category == m2.category and _relatedness(m1, m2) >= 0.25:
+                if _relatedness(m1, m2) >= 0.40:
                     cluster.append(m2)
                     used.add(m2.id)
             if len(cluster) >= 2:
                 clusters.append(cluster)
 
-        # Sort clusters by total volume descending
-        clusters.sort(key=lambda c: sum(m.volume for m in c), reverse=True)
+        # Sort clusters by: (1) multi-source diversity, (2) total volume, (3) disagreement
+        def _cluster_score(cluster):
+            sources = len({m.source for m in cluster})
+            total_vol = sum(m.volume for m in cluster)
+            probs = [m.probability for m in cluster]
+            disagreement = max(probs) - min(probs) if len(probs) > 1 else 0
+            return (sources * 1000000) + (disagreement * 100000) + total_vol
+
+        clusters.sort(key=_cluster_score, reverse=True)
 
         comparisons = []
-        for cluster in clusters[:10]:
+        for cluster in clusters[:15]:
             top_markets = sorted(cluster, key=lambda m: m.volume, reverse=True)[:4]
             probs = [m.probability for m in top_markets]
             max_prob = max(probs)
             min_prob = min(probs)
             disagreement = round(max_prob - min_prob, 3)
+
+            hint = _build_arbitrage_hint(cluster)
 
             comparisons.append({
                 "event_title": _event_title(cluster),
@@ -315,7 +434,8 @@ async def list_cross_market(db: AsyncSession = Depends(get_db)):
                     for m in top_markets
                 ],
                 "disagreement_score": disagreement,
-                "arbitrage_hint": f"Markets diverge by {(disagreement * 100):.0f}pts" if disagreement > 0.05 else None,
+                "arbitrage_hint": hint,
+                "sources": list({m.source for m in cluster}),
             })
 
         return comparisons

@@ -39,11 +39,15 @@ async def lifespan(app: FastAPI):
     async def _startup_ingestion():
         try:
             from ingestion.polymarket import ingest_polymarket
+            from ingestion.kalshi import ingest_kalshi
             from ingestion.news import ingest_news
+            from ingestion.twitter import ingest_twitter
             from ai.opportunity_engine import run_opportunity_engine
             logger.info("Running startup ingestion...")
             await ingest_polymarket()
+            await ingest_kalshi()
             await ingest_news()
+            await ingest_twitter()
             await run_opportunity_engine()
             logger.info("Startup ingestion complete")
         except Exception as e:
