@@ -1,4 +1,5 @@
 import os
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -9,17 +10,35 @@ from api.markets import router as markets_router
 from api.websockets import router as ws_router
 from ingestion.scheduler import start_scheduler, stop_scheduler
 
+logger = logging.getLogger(__name__)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    start_scheduler()
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        logger.info("Database tables created/verified")
+    except Exception as e:
+        logger.error(f"Database init failed (app will still start): {e}")
+    
+    try:
+        start_scheduler()
+    except Exception as e:
+        logger.error(f"Scheduler start failed: {e}")
+    
     yield
+    
     # Shutdown
-    stop_scheduler()
-    await engine.dispose()
+    try:
+        stop_scheduler()
+    except Exception:
+        pass
+    try:
+        await engine.dispose()
+    except Exception:
+        pass
 
 
 app = FastAPI(
@@ -29,9 +48,21 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS — allow local dev AND production Netlify
+origins = [
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://pit-terminal.netlify.app",
+    "https://*.netlify.app",
+]
+
+# Also allow any origin in production if env var is set
+if os.getenv("ALLOW_ALL_ORIGINS"):
+    origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
