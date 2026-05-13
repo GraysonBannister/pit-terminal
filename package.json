@@ -9,6 +9,7 @@
     "dev:backend": "cd backend && source venv/bin/activate && python -m uvicorn main:app --host 0.0.0.0 --port 8000",
     "postinstall": "patch-package",
     "build": "next build --webpack",
+    "postbuild": "mkdir -p .next/server/app && touch .next/server/app/_global-error.prefetch.rsc",
     "start": "next start",
     "lint": "eslint"
   },
