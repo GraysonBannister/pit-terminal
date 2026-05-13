@@ -55,15 +55,21 @@ SOURCE_CREDIBILITY = {
 }
 
 KEYWORD_TAGS = {
+    # Geographic/Entity tags
     "japan": ["japan", "japanese", "tokyo", "ldp", "snap election", "kishida"],
     "usa": ["usa", " us ", "america", "american", "trump", "biden", "harris", "congress", "senate", "white house", "gop", "democrat", "republican"],
     "ukraine": ["ukraine", "russia", "putin", "zelenskyy", "zelensky", "ceasefire", "war", "invasion"],
-    "fed": ["fed", "federal reserve", "rate cut", "interest rate", "inflation", "cpi", "ppi", "powell"],
-    "crypto": ["bitcoin", "btc", "crypto", "cryptocurrency", "ethereum", "eth", "solana", "defi", "nft"],
-    "ai": ["openai", "chatgpt", "gpt", "ai ", "artificial intelligence", "llm", "claude", "anthropic", "gemini"],
-    "tech": ["apple", "google", "alphabet", "microsoft", "meta", "facebook", "amazon", "nvidia", "tesla", "elon"],
-    "markets": ["stock market", "nasdaq", "s&p", "dow", "trading", "investor", "bull", "bear market"],
-    "macro": ["gdp", "recession", "unemployment", "jobs report", "economic growth", "tariff", "trade war"],
+    "china": ["china", "chinese", "beijing", "xi jinping"],
+    "europe": ["europe", "eu ", "european union", "germany", "france", "uk", "britain"],
+    
+    # Topic tags (these match market categories)
+    "politics": ["election", "president", "presidential", "nomination", "vote", "ballot", "senator", "governor", "parliament", "prime minister", "political", "campaign"],
+    "sports": ["nba", "nfl", "mlb", "nhl", "soccer", "football", "basketball", "baseball", "hockey", "world cup", "fifa", "olympics", "tennis", "golf", "ufc"],
+    "crypto": ["bitcoin", "btc", "crypto", "cryptocurrency", "ethereum", "eth", "solana", "defi", "nft", "blockchain", "coinbase", "binance"],
+    "tech": ["apple", "google", "alphabet", "microsoft", "meta", "facebook", "amazon", "nvidia", "tesla", "elon", "iphone", "android", "startup"],
+    "ai": ["openai", "chatgpt", "gpt", "ai ", "artificial intelligence", "llm", "claude", "anthropic", "gemini", "machine learning", "neural"],
+    "macro": ["fed", "federal reserve", "rate cut", "interest rate", "inflation", "cpi", "ppi", "powell", "gdp", "recession", "unemployment", "jobs report", "economic growth", "tariff", "trade war"],
+    "markets": ["stock market", "nasdaq", "s&p", "dow", "trading", "investor", "bull", "bear market", "wall street", "stocks"],
 }
 
 # RSS feeds for major news sources
@@ -243,9 +249,19 @@ async def fetch_reddit() -> list[dict]:
     ]
 
     articles = []
+    failed_count = 0
     logger.info(f"[Reddit] Starting fetch from {len(subreddits)} subreddits")
     
-    async with httpx.AsyncClient(timeout=15.0, headers={"User-Agent": "PIT-Terminal/1.0"}) as client:
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "application/json",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept-Encoding": "gzip, deflate, br",
+        "DNT": "1",
+        "Connection": "keep-alive",
+    }
+    
+    async with httpx.AsyncClient(timeout=15.0, headers=headers, follow_redirects=True) as client:
         for subreddit, default_tag in subreddits:
             try:
                 url = f"https://www.reddit.com/r/{subreddit}/hot.json?limit=10"
@@ -255,7 +271,11 @@ async def fetch_reddit() -> list[dict]:
                     logger.warning(f"[Reddit] r/{subreddit}: RATE LIMITED (429)")
                     continue
                 elif resp.status_code == 403:
-                    logger.warning(f"[Reddit] r/{subreddit}: FORBIDDEN (403) - may be private")
+                    logger.warning(f"[Reddit] r/{subreddit}: FORBIDDEN (403) - Reddit blocks cloud IPs")
+                    failed_count += 1
+                    if failed_count >= 3:
+                        logger.warning("[Reddit] Too many failures, skipping remaining subreddits")
+                        break
                     continue
                 elif resp.status_code != 200:
                     logger.warning(f"[Reddit] r/{subreddit}: HTTP {resp.status_code}")
@@ -287,8 +307,12 @@ async def fetch_reddit() -> list[dict]:
                 
             except Exception as e:
                 logger.warning(f"[Reddit] r/{subreddit}: {type(e).__name__}: {e}")
+                failed_count += 1
+                if failed_count >= 3:
+                    logger.warning("[Reddit] Too many failures, skipping remaining subreddits")
+                    break
 
-    logger.info(f"[Reddit] Total: {len(articles)} posts")
+    logger.info(f"[Reddit] Total: {len(articles)} posts (skipped {failed_count} failures)")
     return articles
 
 

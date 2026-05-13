@@ -43,9 +43,28 @@ export function MarketDetail({ id }: { id: string | undefined }) {
     );
   }
 
-  const relatedNews = allNews.filter((n) =>
-    (market.tags || []).some((t: string) => n.tags.includes(t))
-  );
+  // Filter news by matching tags, fallback to category-based or recent news
+  const relatedNews = React.useMemo(() => {
+    const marketTags = market.tags || [];
+    const marketCategory = market.category || "";
+    
+    // First: exact tag match
+    const tagMatches = allNews.filter((n) =>
+      marketTags.some((t: string) => n.tags.includes(t))
+    );
+    if (tagMatches.length > 0) return tagMatches.slice(0, 10);
+    
+    // Second: category-based match (e.g., "politics" market → "politics" tagged news)
+    const categoryMatches = allNews.filter((n) =>
+      n.tags.includes(marketCategory.toLowerCase())
+    );
+    if (categoryMatches.length > 0) return categoryMatches.slice(0, 10);
+    
+    // Third: general/news fallback - show recent high-credibility news
+    return allNews
+      .filter((n) => n.credibility >= 0.7)
+      .slice(0, 5);
+  }, [allNews, market.tags, market.category]);
 
   const sentiment = market.sentiment || {
     confidence: 0.5,
@@ -241,7 +260,7 @@ export function MarketDetail({ id }: { id: string | undefined }) {
         </CardHeader>
         <CardContent>
           {relatedNews.length === 0 ? (
-            <p className="text-sm text-slate-500">No directly related news items.</p>
+            <p className="text-sm text-slate-500">No news items available.</p>
           ) : (
             <div className="space-y-3">
               {relatedNews.map((news) => (
