@@ -24,7 +24,7 @@ import Link from "next/link";
 
 export default function MarketDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = React.use(params);
-  const { market, loading, error } = useMarket(id);
+  const { market, loading } = useMarket(id);
   const { news: allNews } = useNews();
 
   if (loading) {
@@ -35,10 +35,10 @@ export default function MarketDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  if (error || !market) {
+  if (!market) {
     return (
       <div className="flex h-96 items-center justify-center">
-        <p className="text-rose-400">{error || "Market not found"}</p>
+        <p className="text-rose-400">Market not found</p>
       </div>
     );
   }
