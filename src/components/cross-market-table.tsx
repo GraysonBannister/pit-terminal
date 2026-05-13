@@ -1,12 +1,28 @@
 "use client";
 
-import { crossMarketComparisons, formatProbability, formatVolume } from "@/lib/data";
+import { useCrossMarket } from "@/hooks/use-cross-market";
+import { formatProbability, formatVolume } from "@/lib/data";
 import { ClientTime } from "@/components/client-time";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { GitCompare, AlertTriangle } from "lucide-react";
 
 export function CrossMarketTable() {
+  const { comparisons, loading, usingMock } = useCrossMarket();
+
+  if (loading && comparisons.length === 0) {
+    return (
+      <Card className="border-slate-800 bg-slate-950">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm font-semibold text-slate-100">Cross-Market Arbitrage</CardTitle>
+        </CardHeader>
+        <CardContent className="flex items-center justify-center py-12">
+          <p className="text-sm text-slate-500">Loading cross-market data...</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <Card className="border-slate-800 bg-slate-950">
       <CardHeader className="pb-3">
@@ -17,13 +33,20 @@ export function CrossMarketTable() {
               Cross-Market Arbitrage
             </CardTitle>
           </div>
-          <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
-            {crossMarketComparisons.length} Events
-          </Badge>
+          <div className="flex items-center gap-2">
+            {usingMock && (
+              <Badge variant="outline" className="text-[10px] text-slate-500 border-slate-700">
+                Demo Data
+              </Badge>
+            )}
+            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
+              {comparisons.length} Events
+            </Badge>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        {crossMarketComparisons.map((comp, i) => {
+        {comparisons.map((comp, i) => {
           const maxProb = Math.max(...comp.markets.map((m) => m.probability));
           const minProb = Math.min(...comp.markets.map((m) => m.probability));
           return (
@@ -34,24 +57,24 @@ export function CrossMarketTable() {
               <div className="flex items-start justify-between gap-4 mb-3">
                 <div>
                   <p className="text-sm font-medium text-slate-200">
-                    {comp.eventTitle}
+                    {comp.event_title}
                   </p>
-                  {comp.arbitrageHint && (
+                  {comp.arbitrage_hint && (
                     <div className="mt-1 flex items-center gap-1.5 text-[10px] text-amber-400">
                       <AlertTriangle className="h-3 w-3" />
-                      {comp.arbitrageHint}
+                      {comp.arbitrage_hint}
                     </div>
                   )}
                 </div>
                 <Badge
                   variant="outline"
                   className={`text-[10px] ${
-                    comp.disagreementScore > 0.15
+                    comp.disagreement_score > 0.15
                       ? "bg-amber-500/10 text-amber-400 border-amber-500/20"
                       : "bg-slate-500/10 text-slate-400 border-slate-500/20"
                   }`}
                 >
-                  Δ {(comp.disagreementScore * 100).toFixed(0)}pts
+                  Δ {(comp.disagreement_score * 100).toFixed(0)}pts
                 </Badge>
               </div>
 
@@ -87,7 +110,7 @@ export function CrossMarketTable() {
                       {m.volume > 0 ? formatVolume(m.volume) : "—"}
                     </span>
                     <span className="min-w-[50px] text-right">
-                      <ClientTime iso={m.updatedAt} />
+                      <ClientTime iso={m.updated_at} />
                     </span>
                   </div>
                 ))}

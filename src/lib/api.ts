@@ -85,6 +85,18 @@ export interface ApiNewsItem {
   market_impact: string | null;
 }
 
+export interface ApiCrossMarket {
+  event_title: string;
+  markets: {
+    source: string;
+    probability: number;
+    volume: number;
+    updated_at: string;
+  }[];
+  disagreement_score: number;
+  arbitrage_hint: string | null;
+}
+
 export const api = {
   markets: {
     list: (category?: string, limit = 50) =>
@@ -104,5 +116,8 @@ export const api = {
   news: {
     list: (tag?: string, limit = 20) =>
       fetchJson<ApiNewsItem[]>(`/news?${tag ? `tag=${tag}&` : ""}limit=${limit}`),
+  },
+  crossMarket: {
+    list: () => fetchJson<ApiCrossMarket[]>("/cross-market"),
   },
 };

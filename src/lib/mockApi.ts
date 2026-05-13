@@ -1,4 +1,4 @@
-import { ApiMarket, ApiOpportunity, ApiNarrative, ApiNewsItem } from "./api";
+import { ApiMarket, ApiOpportunity, ApiNarrative, ApiNewsItem, ApiCrossMarket } from "./api";
 
 export const mockMarkets: ApiMarket[] = [
   {
@@ -344,5 +344,36 @@ export const mockNews: ApiNewsItem[] = [
     tags: ["ukraine", "russia", "war"],
     summary: "Diplomatic channels remain strained with both sides hardening positions ahead of winter.",
     market_impact: "Reduces near-term ceasefire probability",
+  },
+];
+
+export const mockCrossMarket: ApiCrossMarket[] = [
+  {
+    event_title: "Trump wins 2024 US Presidential Election",
+    markets: [
+      { source: "Polymarket", probability: 0.52, volume: 14200000, updated_at: "2024-10-01T12:00:00Z" },
+      { source: "Kalshi", probability: 0.49, volume: 3200000, updated_at: "2024-10-01T11:48:00Z" },
+      { source: "PredictIt", probability: 0.55, volume: 890000, updated_at: "2024-10-01T11:40:00Z" },
+    ],
+    disagreement_score: 0.12,
+    arbitrage_hint: "Polymarket/Kalshi spread widest in 48h",
+  },
+  {
+    event_title: "Fed cuts rates in September 2024",
+    markets: [
+      { source: "Kalshi", probability: 0.76, volume: 9500000, updated_at: "2024-10-01T11:52:00Z" },
+      { source: "CME FedWatch", probability: 0.65, volume: 0, updated_at: "2024-10-01T11:00:00Z" },
+    ],
+    disagreement_score: 0.16,
+    arbitrage_hint: "Kalshi pricing 11pts higher than CME implied odds",
+  },
+  {
+    event_title: "Bitcoin hits $100K before end of 2024",
+    markets: [
+      { source: "Polymarket", probability: 0.31, volume: 12000000, updated_at: "2024-10-01T11:57:00Z" },
+      { source: "Crypto Options", probability: 0.42, volume: 4500000, updated_at: "2024-10-01T11:45:00Z" },
+    ],
+    disagreement_score: 0.22,
+    arbitrage_hint: "Options market implying significantly higher probability",
   },
 ];
