@@ -132,6 +132,8 @@ export const api = {
   news: {
     list: (tag?: string, limit = 20) =>
       fetchJson<ApiNewsItem[]>(`/news?${tag ? `tag=${tag}&` : ""}limit=${limit}`),
+    forMarket: (marketId: string, limit = 10) =>
+      fetchJson<ApiNewsItem[]>(`/news/for-market/${marketId}?limit=${limit}`),
   },
   crossMarket: {
     list: () => fetchJson<ApiCrossMarket[]>("/cross-market"),

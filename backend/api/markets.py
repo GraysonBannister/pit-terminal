@@ -120,11 +120,60 @@ async def list_news(
 ):
     try:
         query = select(NewsItem).order_by(desc(NewsItem.published_at))
-        result = await db.execute(query.limit(limit * 2))
+        # Fetch a larger pool when filtering so we have enough matches
+        fetch_limit = limit * 10 if tag else limit
+        result = await db.execute(query.limit(fetch_limit))
         items = result.scalars().all()
         if tag:
             items = [i for i in items if tag in (i.tags or [])]
         return [_serialize(i) for i in items[:limit]]
+    except Exception:
+        return []
+
+
+@router.get("/news/for-market/{market_id}")
+async def news_for_market(
+    market_id: str,
+    limit: int = 10,
+    db: AsyncSession = Depends(get_db),
+):
+    """Return news items relevant to a specific market, ranked by tag overlap."""
+    try:
+        # Fetch the market to get its tags and category
+        mkt_result = await db.execute(select(Market).where(Market.id == market_id))
+        market = mkt_result.scalar_one_or_none()
+        if not market:
+            raise HTTPException(status_code=404, detail="Market not found")
+
+        market_tags: list[str] = list(market.tags or [])
+        market_category: str = (market.category or "").lower()
+
+        # Collect all candidate tags to match against
+        candidate_tags = set(market_tags)
+        if market_category:
+            candidate_tags.add(market_category)
+
+        # Fetch a large pool of recent news (up to 500) to find matches
+        result = await db.execute(
+            select(NewsItem).order_by(desc(NewsItem.published_at)).limit(500)
+        )
+        all_news = result.scalars().all()
+
+        # Score each news item by how many tags overlap with the market
+        scored = []
+        for item in all_news:
+            item_tags = set(item.tags or [])
+            overlap = len(candidate_tags & item_tags)
+            if overlap > 0:
+                scored.append((overlap, item))
+
+        # Sort by overlap descending, then by recency (already ordered by published_at)
+        scored.sort(key=lambda x: x[0], reverse=True)
+        matched = [item for _, item in scored[:limit]]
+
+        return [_serialize(i) for i in matched]
+    except HTTPException:
+        raise
     except Exception:
         return []
 

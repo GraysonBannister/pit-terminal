@@ -1,8 +1,8 @@
 "use client";
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { useMarket } from "@/hooks/use-markets";
-import { useNews } from "@/hooks/use-news";
+import { api, ApiNewsItem } from "@/lib/api";
 import { formatProbability, formatVolume, getCategoryColor } from "@/lib/data";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,32 +25,23 @@ import Link from "next/link";
 
 export function MarketDetail({ id }: { id: string | undefined }) {
   const { market, loading } = useMarket(id);
-  const { news: allNews } = useNews();
+  const [relatedNews, setRelatedNews] = useState<ApiNewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
 
-  // Filter news by matching tags, fallback to category-based or recent news
-  // Must be before early returns to follow React Hooks rules
-  const relatedNews = React.useMemo(() => {
-    if (!market) return [];
-    const marketTags = market.tags || [];
-    const marketCategory = market.category || "";
-    
-    // First: exact tag match
-    const tagMatches = allNews.filter((n) =>
-      marketTags.some((t: string) => n.tags.includes(t))
-    );
-    if (tagMatches.length > 0) return tagMatches.slice(0, 10);
-    
-    // Second: category-based match (e.g., "politics" market → "politics" tagged news)
-    const categoryMatches = allNews.filter((n) =>
-      n.tags.includes(marketCategory.toLowerCase())
-    );
-    if (categoryMatches.length > 0) return categoryMatches.slice(0, 10);
-    
-    // Third: general/news fallback - show recent high-credibility news
-    return allNews
-      .filter((n) => n.credibility >= 0.7)
-      .slice(0, 5);
-  }, [allNews, market]);
+  useEffect(() => {
+    if (!id || id === "undefined") return;
+    let cancelled = false;
+    setNewsLoading(true);
+    api.news.forMarket(id, 10).then((items) => {
+      if (!cancelled) {
+        setRelatedNews(items);
+        setNewsLoading(false);
+      }
+    }).catch(() => {
+      if (!cancelled) setNewsLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, [id]);
 
   if (loading) {
     return (
@@ -261,8 +252,10 @@ export function MarketDetail({ id }: { id: string | undefined }) {
           </div>
         </CardHeader>
         <CardContent>
-          {relatedNews.length === 0 ? (
-            <p className="text-sm text-slate-500">No news items available.</p>
+          {newsLoading ? (
+            <p className="text-sm text-slate-500">Loading relevant news...</p>
+          ) : relatedNews.length === 0 ? (
+            <p className="text-sm text-slate-500">No relevant news found for this market.</p>
           ) : (
             <div className="space-y-3">
               {relatedNews.map((news) => (
