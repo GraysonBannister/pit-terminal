@@ -2,28 +2,29 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiMarket } from "@/lib/api";
-import { mockMarkets } from "@/lib/mockApi";
 
-const isLocalhost = typeof window !== "undefined" && window.location.hostname === "localhost";
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export function useMarkets(category?: string) {
   const [markets, setMarkets] = useState<ApiMarket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingMock, setUsingMock] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchMarkets = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.markets.list(category);
       setMarkets(data);
-      setUsingMock(false);
-    } catch {
-      // Fallback to mock data
-      const filtered = category
-        ? mockMarkets.filter((m) => m.category === category)
-        : mockMarkets;
-      setMarkets(filtered);
-      setUsingMock(true);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch markets"));
+      if (USE_MOCK) {
+        const { mockMarkets } = await import("@/lib/mockApi");
+        const filtered = category
+          ? mockMarkets.filter((m) => m.category === category)
+          : mockMarkets;
+        setMarkets(filtered);
+      }
     } finally {
       setLoading(false);
     }
@@ -35,24 +36,27 @@ export function useMarkets(category?: string) {
     return () => clearInterval(interval);
   }, [fetchMarkets]);
 
-  return { markets, loading, usingMock, refetch: fetchMarkets };
+  return { markets, loading, error, usingMock: USE_MOCK && !!error, refetch: fetchMarkets };
 }
 
 export function useMarket(id: string) {
   const [market, setMarket] = useState<ApiMarket | null>(null);
   const [loading, setLoading] = useState(true);
-  const [usingMock, setUsingMock] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchMarket = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.markets.get(id);
       setMarket(data);
-      setUsingMock(false);
-    } catch {
-      const found = mockMarkets.find((m) => m.id === id) || null;
-      setMarket(found);
-      setUsingMock(true);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch market"));
+      if (USE_MOCK) {
+        const { mockMarkets } = await import("@/lib/mockApi");
+        const found = mockMarkets.find((m) => m.id === id) || null;
+        setMarket(found);
+      }
     } finally {
       setLoading(false);
     }
@@ -64,5 +68,5 @@ export function useMarket(id: string) {
     return () => clearInterval(interval);
   }, [fetchMarket]);
 
-  return { market, loading, usingMock, refetch: fetchMarket };
+  return { market, loading, error, usingMock: USE_MOCK && !!error, refetch: fetchMarket };
 }

@@ -2,22 +2,26 @@
 
 import { useEffect, useState, useCallback } from "react";
 import { api, ApiCrossMarket } from "@/lib/api";
-import { mockCrossMarket } from "@/lib/mockApi";
+
+const USE_MOCK = process.env.NEXT_PUBLIC_USE_MOCK === "true";
 
 export function useCrossMarket() {
   const [comparisons, setComparisons] = useState<ApiCrossMarket[]>([]);
   const [loading, setLoading] = useState(true);
-  const [usingMock, setUsingMock] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   const fetchComparisons = useCallback(async () => {
     try {
       setLoading(true);
+      setError(null);
       const data = await api.crossMarket.list();
       setComparisons(data);
-      setUsingMock(false);
-    } catch {
-      setComparisons(mockCrossMarket);
-      setUsingMock(true);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error("Failed to fetch cross-market data"));
+      if (USE_MOCK) {
+        const { mockCrossMarket } = await import("@/lib/mockApi");
+        setComparisons(mockCrossMarket);
+      }
     } finally {
       setLoading(false);
     }
@@ -29,5 +33,5 @@ export function useCrossMarket() {
     return () => clearInterval(interval);
   }, [fetchComparisons]);
 
-  return { comparisons, loading, usingMock, refetch: fetchComparisons };
+  return { comparisons, loading, error, usingMock: USE_MOCK && !!error, refetch: fetchComparisons };
 }
