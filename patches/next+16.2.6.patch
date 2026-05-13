@@ -12,15 +12,24 @@ index 82b6eb4..c73f8a1 100644
              prerenderFallbackMode: undefined,
              prerenderedRoutes: undefined,
 diff --git a/node_modules/next/dist/export/routes/app-page.js b/node_modules/next/dist/export/routes/app-page.js
-index 077bd53..65aad3a 100644
+index 077bd53..d67d0dc 100644
 --- a/node_modules/next/dist/export/routes/app-page.js
 +++ b/node_modules/next/dist/export/routes/app-page.js
-@@ -37,6 +37,8 @@ async function exportAppPage(req, res, page, path, pathname, query, fallbackRout
+@@ -37,6 +37,17 @@ async function exportAppPage(req, res, page, path, pathname, query, fallbackRout
      if (page === _entryconstants.UNDERSCORE_GLOBAL_ERROR_ROUTE_ENTRY) {
          isDefaultGlobalError = true;
          pathname = '/500';
-+        // Skip static rendering of /_global-error (client component, causes dual-React issues)
-+        return { type: 'app-page', metadata: { status: 200 }, html: '<!DOCTYPE html><html><body><p>Error</p></body></html>' };
++        // Write stub files that the Netlify plugin expects, without rendering the
++        // client component (which fails due to dual-React-instance issues in Next.js 16).
++        const stubHtml = '<!DOCTYPE html><html lang="en"><head><meta charset="utf-8"><title>Error</title></head><body><div style="display:flex;height:100vh;align-items:center;justify-content:center;background:#020617;color:#f1f5f9;font-family:sans-serif"><div style="text-align:center"><h2 style="margin-bottom:1rem">Something went wrong</h2><a href="/" style="color:#818cf8">Go Home</a></div></div></body></html>';
++        const stubMeta = JSON.stringify({ status: 500, headers: { 'cache-control': 'no-store' } }, null, 2);
++        fileWriter.append(htmlFilepath, stubHtml);
++        fileWriter.append(htmlFilepath.replace(/\.html$/, _constants.NEXT_META_SUFFIX), stubMeta);
++        return {
++            metadata: { status: 500, headers: {} },
++            html: stubHtml,
++            revalidate: false,
++        };
      }
      try {
          const result = await (0, _modulerender.lazyRenderAppPage)(new _node.NodeNextRequest(req), new _node.NodeNextResponse(res), pathname, query, fallbackRouteParams, renderOpts, undefined, sharedContext);
