@@ -12,6 +12,7 @@ import {
   Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMarkets } from "@/hooks/use-markets";
 
 const nav = [
   { name: "Dashboard", href: "/", icon: Radar },
@@ -23,6 +24,7 @@ const nav = [
 
 export function Sidebar() {
   const pathname = usePathname();
+  const { markets } = useMarkets();
 
   return (
     <aside className="fixed left-0 top-0 z-40 flex h-screen w-64 flex-col border-r border-slate-800 bg-slate-950">
@@ -73,7 +75,7 @@ export function Sidebar() {
             <span className="text-xs text-slate-300">Live Monitoring</span>
           </div>
           <p className="mt-1 text-xs text-slate-500">
-            8 markets tracked
+            {markets.length} markets tracked
           </p>
         </div>
       </div>

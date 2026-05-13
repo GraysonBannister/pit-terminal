@@ -23,7 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export function MarketDetail({ id }: { id: string }) {
+export function MarketDetail({ id }: { id: string | undefined }) {
   const { market, loading } = useMarket(id);
   const { news: allNews } = useNews();
 

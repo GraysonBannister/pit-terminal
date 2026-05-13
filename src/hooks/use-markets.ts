@@ -51,13 +51,18 @@ export function useMarkets(category?: string) {
   return { markets, loading, error, usingMock, refetch: fetchMarkets };
 }
 
-export function useMarket(id: string) {
+export function useMarket(id: string | undefined) {
   const [market, setMarket] = useState<ApiMarket | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
   const [usingMock, setUsingMock] = useState(false);
 
   const fetchMarket = useCallback(async () => {
+    if (!id || id === "undefined") {
+      console.warn(`[useMarket] Skipping fetch — id is "${id}"`);
+      setLoading(false);
+      return;
+    }
     console.log(`[useMarket] Fetching market id=${id}...`);
     try {
       setLoading(true);
