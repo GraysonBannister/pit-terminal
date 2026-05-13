@@ -75,8 +75,12 @@ async def fetch_newsapi() -> list[dict]:
     ]
 
     articles = []
+    rate_limited = False
     async with httpx.AsyncClient(timeout=30.0) as client:
         for q in queries:
+            if rate_limited:
+                logger.info(f"NewsAPI rate limited, skipping remaining queries")
+                break
             params = {
                 "q": q,
                 "sortBy": "publishedAt",
@@ -86,6 +90,10 @@ async def fetch_newsapi() -> list[dict]:
             }
             try:
                 resp = await client.get(NEWSAPI_URL, params=params)
+                if resp.status_code == 429:
+                    logger.warning(f"NewsAPI rate limited (429) for query '{q}'. Backing off remaining queries.")
+                    rate_limited = True
+                    continue
                 resp.raise_for_status()
                 data = resp.json()
                 if data.get("status") == "ok":

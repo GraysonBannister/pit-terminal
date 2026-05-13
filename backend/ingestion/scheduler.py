@@ -28,7 +28,10 @@ async def _loop_ingest_news():
             logger.info("News ingestion complete")
         except Exception as e:
             logger.error(f"News ingestion failed: {e}")
-        await asyncio.sleep(600)
+        # NewsAPI free tier = 100 req/day. With 5 queries per run, that's 20 runs/day max.
+        # 3600s = hourly is safe (24 runs/day × 5 queries = 120 requests — slightly over).
+        # 7200s = every 2 hours is comfortably under limit.
+        await asyncio.sleep(7200)
 
 
 async def _loop_opportunity_engine():

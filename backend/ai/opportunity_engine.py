@@ -122,11 +122,180 @@ def _build_signals(
     return signals
 
 
+async def _process_single_market(market_id: str, all_news: list[NewsItem]) -> bool:
+    """Process one market in its own short transaction to avoid long row locks."""
+    async with AsyncSessionLocal() as session:
+        # Re-fetch the market inside a fresh session
+        result = await session.execute(
+            select(Market).where(Market.id == market_id)
+        )
+        market = result.scalar_one_or_none()
+        if not market or market.volume <= 0:
+            return False
+
+        market_tags = set(market.tags or [])
+        news_items = [
+            n for n in all_news
+            if market_tags.intersection(set(n.tags or []))
+        ][:10]
+
+        # Fallback: match by category keywords in headline
+        if not news_items:
+            category_keywords = {
+                "politics": ["election", "trump", "biden", "vote", "president", "minister", "pm"],
+                "macro": ["fed", "rate", "inflation", "recession", "economy", "gdp"],
+                "tech": ["ai", "openai", "apple", "google", "gpt", "model"],
+                "crypto": ["bitcoin", "btc", "crypto", "ethereum", "etf"],
+                "sports": ["world cup", "olympics", "nba", "nfl", "soccer"],
+            }
+            keywords = category_keywords.get(market.category, [])
+            news_items = [
+                n for n in all_news
+                if any(kw in (n.headline or "").lower() for kw in keywords)
+            ][:10]
+
+        # Run AI analysis if OpenAI key is available, else use heuristics
+        news_dicts = [
+            {"headline": n.headline, "source": n.source, "summary": n.summary}
+            for n in news_items
+        ]
+
+        if news_dicts:
+            sentiment = await analyze_sentiment(news_dicts)
+            summary = await generate_market_summary(
+                market_title=market.title,
+                recent_news=news_dicts,
+                current_probability=market.probability,
+                recent_movement=market.recent_movement,
+            )
+        else:
+            sentiment = {
+                "confidence": 0.5,
+                "uncertainty": 0.5,
+                "polarization": 0.5,
+                "narrative_velocity": 0.5,
+            }
+            summary = None
+
+        # Update market with AI outputs
+        market.ai_summary = summary or market.ai_summary
+        market.sentiment = sentiment
+
+        # Calculate scores
+        adjusted_prob = _adjusted_probability(market.probability, sentiment)
+        divergence = abs(adjusted_prob - market.probability)
+        divergence_score = min(1.0, divergence * 3)
+
+        narrative_velocity = sentiment.get("narrative_velocity", 0.5)
+        liquidity_weakness = _normalize_liquidity(market.liquidity)
+        spread_score = _normalize_spread(market.spread)
+        news_signal = _calculate_news_signal(news_items)
+        movement_score = min(1.0, abs(market.recent_movement) * 5)
+
+        # Weighted confidence score (0-100)
+        confidence = (
+            divergence_score * WEIGHTS["divergence"] +
+            narrative_velocity * WEIGHTS["narrative_acceleration"] +
+            liquidity_weakness * WEIGHTS["liquidity_weakness"] +
+            spread_score * WEIGHTS["spread_inefficiency"] +
+            movement_score * WEIGHTS["recent_movement"] +
+            news_signal * WEIGHTS["news_signal"]
+        ) * 100
+
+        # BOOST: if no news but market has interesting characteristics, still create opportunity
+        if not news_items and confidence < MIN_CONFIDENCE_THRESHOLD:
+            pure_score = (
+                (liquidity_weakness * 0.3) +
+                (spread_score * 0.3) +
+                (movement_score * 0.25) +
+                (min(1.0, market.volume / 5_000_000) * 0.15)
+            ) * 100
+            if pure_score >= MIN_CONFIDENCE_THRESHOLD:
+                confidence = pure_score
+                divergence_score = 0.2
+                narrative_velocity = 0.3
+
+        if confidence < MIN_CONFIDENCE_THRESHOLD:
+            await session.commit()
+            return False
+
+        div_type = _divergence_type(market.probability, adjusted_prob)
+        signals = _build_signals(
+            divergence_score, narrative_velocity,
+            liquidity_weakness, spread_score, news_signal, news_items,
+        )
+
+        # Build AI estimated range
+        uncertainty = sentiment.get("uncertainty", 0.3)
+        low = max(0.02, adjusted_prob - uncertainty * 0.3)
+        high = min(0.98, adjusted_prob + uncertainty * 0.3)
+
+        now = datetime.now(timezone.utc)
+        opp_id = f"opp-{market.id}"
+        stmt = insert(Opportunity).values(
+            id=opp_id,
+            market_id=market.id,
+            market_title=market.title,
+            category=market.category,
+            market_probability=market.probability,
+            ai_estimated_low=low,
+            ai_estimated_high=high,
+            confidence_score=round(confidence, 1),
+            divergence_type=div_type,
+            signals=signals,
+        ).on_conflict_do_update(
+            index_elements=["id"],
+            set_={
+                "market_title": market.title,
+                "category": market.category,
+                "market_probability": market.probability,
+                "ai_estimated_low": low,
+                "ai_estimated_high": high,
+                "confidence_score": round(confidence, 1),
+                "divergence_type": div_type,
+                "signals": signals,
+                "created_at": now,
+            },
+        )
+        await session.execute(stmt)
+
+        # Update narrative shift record
+        nar_id = f"nar-{market.id}"
+        prev_sent = market.sentiment.get("current_sentiment", 0.5) if market.sentiment else 0.5
+        curr_sent = sentiment.get("confidence", 0.5)
+        nar_stmt = insert(NarrativeShift).values(
+            id=nar_id,
+            topic=market.title[:100],
+            category=market.category,
+            previous_sentiment=prev_sent,
+            current_sentiment=curr_sent,
+            velocity=narrative_velocity,
+            attention_spike=1.0 + narrative_velocity,
+            sources=len(news_items),
+            last_updated=now,
+            markets_affected=[market.id],
+        ).on_conflict_do_update(
+            index_elements=["id"],
+            set_={
+                "previous_sentiment": NarrativeShift.current_sentiment,
+                "current_sentiment": curr_sent,
+                "velocity": narrative_velocity,
+                "attention_spike": 1.0 + narrative_velocity,
+                "sources": len(news_items),
+                "last_updated": now,
+            },
+        )
+        await session.execute(nar_stmt)
+
+        await session.commit()
+        return True
+
+
 async def run_opportunity_engine():
     logger.info("Running opportunity engine...")
 
+    # Fetch markets and news in a read-only session, then close it
     async with AsyncSessionLocal() as session:
-        # Fetch active markets with volume > 0
         result = await session.execute(
             select(Market)
             .where(Market.volume > 0)
@@ -134,8 +303,8 @@ async def run_opportunity_engine():
             .limit(50)
         )
         markets = result.scalars().all()
+        market_ids = [m.id for m in markets]
 
-        # Fetch recent news (last 48h) — but don't require it
         cutoff = datetime.now(timezone.utc) - timedelta(hours=48)
         news_result = await session.execute(
             select(NewsItem)
@@ -145,164 +314,15 @@ async def run_opportunity_engine():
         )
         all_news = news_result.scalars().all()
 
-        opportunities_created = 0
+    opportunities_created = 0
 
-        for market in markets:
-            market_tags = set(market.tags or [])
-            news_items = [
-                n for n in all_news
-                if market_tags.intersection(set(n.tags or []))
-            ][:10]
-
-            # Fallback: match by category keywords in headline
-            if not news_items:
-                category_keywords = {
-                    "politics": ["election", "trump", "biden", "vote", "president", "minister", "pm"],
-                    "macro": ["fed", "rate", "inflation", "recession", "economy", "gdp"],
-                    "tech": ["ai", "openai", "apple", "google", "gpt", "model"],
-                    "crypto": ["bitcoin", "btc", "crypto", "ethereum", "etf"],
-                    "sports": ["world cup", "olympics", "nba", "nfl", "soccer"],
-                }
-                keywords = category_keywords.get(market.category, [])
-                news_items = [
-                    n for n in all_news
-                    if any(kw in (n.headline or "").lower() for kw in keywords)
-                ][:10]
-
-            # Run AI analysis if OpenAI key is available, else use heuristics
-            news_dicts = [
-                {"headline": n.headline, "source": n.source, "summary": n.summary}
-                for n in news_items
-            ]
-
-            if news_dicts:
-                sentiment = await analyze_sentiment(news_dicts)
-                summary = await generate_market_summary(
-                    market_title=market.title,
-                    recent_news=news_dicts,
-                    current_probability=market.probability,
-                    recent_movement=market.recent_movement,
-                )
-            else:
-                # Heuristic sentiment when no news available
-                sentiment = {
-                    "confidence": 0.5,
-                    "uncertainty": 0.5,
-                    "polarization": 0.5,
-                    "narrative_velocity": 0.5,
-                }
-                summary = None
-
-            # Update market with AI outputs
-            market.ai_summary = summary or market.ai_summary
-            market.sentiment = sentiment
-
-            # Calculate scores
-            adjusted_prob = _adjusted_probability(market.probability, sentiment)
-            divergence = abs(adjusted_prob - market.probability)
-            divergence_score = min(1.0, divergence * 3)
-
-            narrative_velocity = sentiment.get("narrative_velocity", 0.5)
-            liquidity_weakness = _normalize_liquidity(market.liquidity)
-            spread_score = _normalize_spread(market.spread)
-            news_signal = _calculate_news_signal(news_items)
-            movement_score = min(1.0, abs(market.recent_movement) * 5)
-
-            # Weighted confidence score (0-100)
-            confidence = (
-                divergence_score * WEIGHTS["divergence"] +
-                narrative_velocity * WEIGHTS["narrative_acceleration"] +
-                liquidity_weakness * WEIGHTS["liquidity_weakness"] +
-                spread_score * WEIGHTS["spread_inefficiency"] +
-                movement_score * WEIGHTS["recent_movement"] +
-                news_signal * WEIGHTS["news_signal"]
-            ) * 100
-
-            # BOOST: if no news but market has interesting characteristics, still create opportunity
-            if not news_items and confidence < MIN_CONFIDENCE_THRESHOLD:
-                # Pure market-data-driven scoring
-                pure_score = (
-                    (liquidity_weakness * 0.3) +
-                    (spread_score * 0.3) +
-                    (movement_score * 0.25) +
-                    (min(1.0, market.volume / 5_000_000) * 0.15)
-                ) * 100
-                if pure_score >= MIN_CONFIDENCE_THRESHOLD:
-                    confidence = pure_score
-                    divergence_score = 0.2
-                    narrative_velocity = 0.3
-
-            if confidence < MIN_CONFIDENCE_THRESHOLD:
-                continue
-
-            div_type = _divergence_type(market.probability, adjusted_prob)
-            signals = _build_signals(
-                divergence_score, narrative_velocity,
-                liquidity_weakness, spread_score, news_signal, news_items,
-            )
-
-            # Build AI estimated range
-            uncertainty = sentiment.get("uncertainty", 0.3)
-            low = max(0.02, adjusted_prob - uncertainty * 0.3)
-            high = min(0.98, adjusted_prob + uncertainty * 0.3)
-
-            opp_id = f"opp-{market.id}"
-            stmt = insert(Opportunity).values(
-                id=opp_id,
-                market_id=market.id,
-                market_title=market.title,
-                category=market.category,
-                market_probability=market.probability,
-                ai_estimated_low=low,
-                ai_estimated_high=high,
-                confidence_score=round(confidence, 1),
-                divergence_type=div_type,
-                signals=signals,
-            ).on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    "market_title": market.title,
-                    "category": market.category,
-                    "market_probability": market.probability,
-                    "ai_estimated_low": low,
-                    "ai_estimated_high": high,
-                    "confidence_score": round(confidence, 1),
-                    "divergence_type": div_type,
-                    "signals": signals,
-                    "created_at": datetime.now(timezone.utc),
-                },
-            )
-            await session.execute(stmt)
-            opportunities_created += 1
-
-            # Update narrative shift record
-            nar_id = f"nar-{market.id}"
-            prev_sent = market.sentiment.get("current_sentiment", 0.5) if market.sentiment else 0.5
-            curr_sent = sentiment.get("confidence", 0.5)
-            nar_stmt = insert(NarrativeShift).values(
-                id=nar_id,
-                topic=market.title[:100],
-                category=market.category,
-                previous_sentiment=prev_sent,
-                current_sentiment=curr_sent,
-                velocity=narrative_velocity,
-                attention_spike=1.0 + narrative_velocity,
-                sources=len(news_items),
-                last_updated=datetime.now(timezone.utc),
-                markets_affected=[market.id],
-            ).on_conflict_do_update(
-                index_elements=["id"],
-                set_={
-                    "previous_sentiment": NarrativeShift.current_sentiment,
-                    "current_sentiment": curr_sent,
-                    "velocity": narrative_velocity,
-                    "attention_spike": 1.0 + narrative_velocity,
-                    "sources": len(news_items),
-                    "last_updated": datetime.now(timezone.utc),
-                },
-            )
-            await session.execute(nar_stmt)
-
-        await session.commit()
+    for market_id in market_ids:
+        try:
+            created = await _process_single_market(market_id, all_news)
+            if created:
+                opportunities_created += 1
+        except Exception as e:
+            logger.error(f"Opportunity engine failed for market {market_id}: {e}")
+            continue
 
     logger.info(f"Opportunity engine complete. Created/updated {opportunities_created} opportunities.")
